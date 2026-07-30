@@ -42,3 +42,11 @@ Para testar sem e-mail: Authentication → Providers → Email → desative **Co
 ## Regra de saldo
 
 Só aulas com status `completed` consomem o pacote. Falta e remarcação não consomem até a aula ser dada.
+
+## Instalar no celular (PWA)
+
+1. Abra o app no Chrome (Android) ou Safari (iPhone)
+2. **Android:** menu → **Adicionar à tela inicial**
+3. **iPhone:** compartilhar → **Adicionar à Tela de Início**
+
+O atalho aparece como **AgendaProf** com o ícone de agenda/relógio.

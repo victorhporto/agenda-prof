@@ -126,16 +126,31 @@ export type Database = {
           created_at: string;
           full_name: string | null;
           id: string;
+          msg_completed: string | null;
+          msg_missed: string | null;
+          msg_rescheduled: string | null;
+          msg_signature: string | null;
+          msg_signature_enabled: boolean;
         };
         Insert: {
           created_at?: string;
           full_name?: string | null;
           id: string;
+          msg_completed?: string | null;
+          msg_missed?: string | null;
+          msg_rescheduled?: string | null;
+          msg_signature?: string | null;
+          msg_signature_enabled?: boolean;
         };
         Update: {
           created_at?: string;
           full_name?: string | null;
           id?: string;
+          msg_completed?: string | null;
+          msg_missed?: string | null;
+          msg_rescheduled?: string | null;
+          msg_signature?: string | null;
+          msg_signature_enabled?: boolean;
         };
         Relationships: [];
       };

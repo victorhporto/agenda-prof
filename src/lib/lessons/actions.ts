@@ -17,6 +17,30 @@ async function requireUser() {
   return { supabase, user };
 }
 
+async function getMessageTemplates(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  teacherId: string,
+) {
+  const { data } = await supabase
+    .from("profiles")
+    .select(
+      "msg_completed, msg_missed, msg_rescheduled, msg_signature, msg_signature_enabled",
+    )
+    .eq("id", teacherId)
+    .single();
+  return data;
+}
+
+function signatureFrom(templates: {
+  msg_signature: string | null;
+  msg_signature_enabled: boolean;
+} | null) {
+  return {
+    enabled: templates?.msg_signature_enabled ?? false,
+    text: templates?.msg_signature ?? null,
+  };
+}
+
 export async function completeLesson(lessonId: string) {
   const { supabase, user } = await requireUser();
 
@@ -89,13 +113,18 @@ export async function completeLesson(lessonId: string) {
 
   const remaining = pkg.total_lessons - sequenceNumber;
   const studentName = pkg.students?.name ?? "aluno";
-  const message = completedLessonMessage({
-    studentName,
-    sequenceNumber,
-    totalLessons: pkg.total_lessons,
-    scheduledAt: lesson.scheduled_at,
-    remaining,
-  });
+  const templates = await getMessageTemplates(supabase, user.id);
+  const message = completedLessonMessage(
+    {
+      studentName,
+      sequenceNumber,
+      totalLessons: pkg.total_lessons,
+      scheduledAt: lesson.scheduled_at,
+      remaining,
+    },
+    templates?.msg_completed,
+    signatureFrom(templates),
+  );
 
   revalidatePath("/agenda");
   revalidatePath("/pacotes");
@@ -142,10 +171,15 @@ export async function markLessonMissed(lessonId: string) {
     students: { name: string } | null;
   } | null;
   const studentName = pkg?.students?.name ?? "aluno";
-  const message = missedLessonMessage({
-    studentName,
-    scheduledAt: lesson.scheduled_at,
-  });
+  const templates = await getMessageTemplates(supabase, user.id);
+  const message = missedLessonMessage(
+    {
+      studentName,
+      scheduledAt: lesson.scheduled_at,
+    },
+    templates?.msg_missed,
+    signatureFrom(templates),
+  );
 
   revalidatePath("/agenda");
   revalidatePath("/pacotes");
@@ -217,11 +251,16 @@ export async function rescheduleLesson(
     students: { name: string } | null;
   } | null;
   const studentName = pkg?.students?.name ?? "aluno";
-  const message = rescheduledLessonMessage({
-    studentName,
-    oldDate,
-    newDate: newLesson.scheduled_at,
-  });
+  const templates = await getMessageTemplates(supabase, user.id);
+  const message = rescheduledLessonMessage(
+    {
+      studentName,
+      oldDate,
+      newDate: newLesson.scheduled_at,
+    },
+    templates?.msg_rescheduled,
+    signatureFrom(templates),
+  );
 
   revalidatePath("/agenda");
   revalidatePath("/pacotes");

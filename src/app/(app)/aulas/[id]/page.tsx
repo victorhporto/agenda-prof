@@ -19,6 +19,9 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
   const { msg } = await searchParams;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { data: lesson } = await supabase
     .from("lessons")
@@ -38,6 +41,14 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
 
   if (!lesson) notFound();
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select(
+      "msg_completed, msg_missed, msg_rescheduled, msg_signature, msg_signature_enabled",
+    )
+    .eq("id", user!.id)
+    .single();
+
   const pkg = lesson.lesson_packages as {
     id: string;
     title: string;
@@ -46,6 +57,10 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
   } | null;
 
   const studentName = pkg?.students?.name ?? "aluno";
+  const signature = {
+    enabled: profile?.msg_signature_enabled ?? false,
+    text: profile?.msg_signature ?? null,
+  };
 
   let storedMessage: string | null = null;
   if (lesson.status === "completed" && lesson.sequence_number && pkg) {
@@ -53,18 +68,26 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
       pkg.total_lessons - lesson.sequence_number,
       0,
     );
-    storedMessage = completedLessonMessage({
-      studentName,
-      sequenceNumber: lesson.sequence_number,
-      totalLessons: pkg.total_lessons,
-      scheduledAt: lesson.scheduled_at,
-      remaining,
-    });
+    storedMessage = completedLessonMessage(
+      {
+        studentName,
+        sequenceNumber: lesson.sequence_number,
+        totalLessons: pkg.total_lessons,
+        scheduledAt: lesson.scheduled_at,
+        remaining,
+      },
+      profile?.msg_completed,
+      signature,
+    );
   } else if (lesson.status === "missed") {
-    storedMessage = missedLessonMessage({
-      studentName,
-      scheduledAt: lesson.scheduled_at,
-    });
+    storedMessage = missedLessonMessage(
+      {
+        studentName,
+        scheduledAt: lesson.scheduled_at,
+      },
+      profile?.msg_missed,
+      signature,
+    );
   } else if (lesson.status === "scheduled" && lesson.rescheduled_from_id) {
     const { data: oldLesson } = await supabase
       .from("lessons")
@@ -72,11 +95,15 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
       .eq("id", lesson.rescheduled_from_id)
       .single();
     if (oldLesson) {
-      storedMessage = rescheduledLessonMessage({
-        studentName,
-        oldDate: oldLesson.scheduled_at,
-        newDate: lesson.scheduled_at,
-      });
+      storedMessage = rescheduledLessonMessage(
+        {
+          studentName,
+          oldDate: oldLesson.scheduled_at,
+          newDate: lesson.scheduled_at,
+        },
+        profile?.msg_rescheduled,
+        signature,
+      );
     }
   }
 

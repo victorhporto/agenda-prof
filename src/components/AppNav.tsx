@@ -8,6 +8,7 @@ const links = [
   { href: "/agenda", label: "Agenda" },
   { href: "/alunos", label: "Alunos" },
   { href: "/pacotes", label: "Pacotes" },
+  { href: "/mensagens", label: "Msgs" },
 ];
 
 export function AppNav() {
@@ -44,7 +45,7 @@ export function AppNav() {
                       : "text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]"
                   }`}
                 >
-                  {link.label}
+                  {link.href === "/mensagens" ? "Mensagens" : link.label}
                 </Link>
               );
             })}
@@ -67,14 +68,14 @@ export function AppNav() {
       </header>
 
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md sm:hidden">
-        <div className="mx-auto grid max-w-3xl grid-cols-3 gap-1 px-2 py-2">
+        <div className="mx-auto grid max-w-3xl grid-cols-4 gap-1 px-2 py-2">
           {links.map((link) => {
             const active = pathname.startsWith(link.href);
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`rounded-xl px-2 py-2.5 text-center text-sm font-medium ${
+                className={`rounded-xl px-1 py-2.5 text-center text-sm font-medium ${
                   active
                     ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                     : "text-[var(--ink-muted)]"
