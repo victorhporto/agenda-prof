@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPackageProgress } from "@/lib/package-progress";
-import { formatLessonDate, statusLabel } from "@/lib/utils";
+import { formatLessonDate, formatMoney, statusLabel } from "@/lib/utils";
 import { ClosePackageButton } from "@/components/ClosePackageButton";
+import { PaymentPanel } from "@/components/PaymentPanel";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -89,7 +90,7 @@ export default async function PacoteDetailPage({ params }: Props) {
         </div>
         {pkg.price != null && (
           <p className="mt-3 text-sm text-[var(--ink-muted)]">
-            Valor: R$ {Number(pkg.price).toFixed(2)}
+            Valor: {formatMoney(pkg.price)}
           </p>
         )}
         {!progress.canScheduleMore && pkg.status === "active" && (
@@ -98,6 +99,15 @@ export default async function PacoteDetailPage({ params }: Props) {
           </p>
         )}
       </div>
+
+      <PaymentPanel
+        packageId={pkg.id}
+        price={pkg.price}
+        paymentStatus={pkg.payment_status}
+        amountPaid={Number(pkg.amount_paid ?? 0)}
+        paymentNotes={pkg.payment_notes}
+        paidAt={pkg.paid_at}
+      />
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">Aulas</h2>

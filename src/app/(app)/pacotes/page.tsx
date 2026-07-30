@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getPackageProgress } from "@/lib/package-progress";
+import { formatMoney, paymentStatusLabel } from "@/lib/utils";
 
 export default async function PacotesPage() {
   const supabase = await createClient();
@@ -57,17 +58,31 @@ export default async function PacotesPage() {
                       <p className="text-lg font-semibold">{pkg.title}</p>
                       <p className="text-sm text-[var(--ink-muted)]">
                         {student?.name}
+                        {pkg.price != null ? ` · ${formatMoney(pkg.price)}` : ""}
                       </p>
                     </div>
-                    <span
-                      className={`badge ${
-                        pkg.status === "active"
-                          ? "badge-completed"
-                          : "badge-cancelled"
-                      }`}
-                    >
-                      {pkg.status === "active" ? "Ativo" : "Encerrado"}
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span
+                        className={`badge ${
+                          pkg.status === "active"
+                            ? "badge-completed"
+                            : "badge-cancelled"
+                        }`}
+                      >
+                        {pkg.status === "active" ? "Ativo" : "Encerrado"}
+                      </span>
+                      <span
+                        className={`badge ${
+                          pkg.payment_status === "paid"
+                            ? "badge-completed"
+                            : pkg.payment_status === "partial"
+                              ? "badge-missed"
+                              : "badge-scheduled"
+                        }`}
+                      >
+                        {paymentStatusLabel(pkg.payment_status)}
+                      </span>
+                    </div>
                   </div>
                   <div className="mt-3">
                     <div className="mb-1 flex justify-between text-sm">

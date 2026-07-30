@@ -14,8 +14,12 @@ export type Database = {
     Tables: {
       lesson_packages: {
         Row: {
+          amount_paid: number;
           created_at: string;
           id: string;
+          paid_at: string | null;
+          payment_notes: string | null;
+          payment_status: string;
           price: number | null;
           status: string;
           student_id: string;
@@ -24,8 +28,12 @@ export type Database = {
           total_lessons: number;
         };
         Insert: {
+          amount_paid?: number;
           created_at?: string;
           id?: string;
+          paid_at?: string | null;
+          payment_notes?: string | null;
+          payment_status?: string;
           price?: number | null;
           status?: string;
           student_id: string;
@@ -34,8 +42,12 @@ export type Database = {
           total_lessons: number;
         };
         Update: {
+          amount_paid?: number;
           created_at?: string;
           id?: string;
+          paid_at?: string | null;
+          payment_notes?: string | null;
+          payment_status?: string;
           price?: number | null;
           status?: string;
           student_id?: string;

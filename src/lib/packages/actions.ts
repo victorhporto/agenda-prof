@@ -16,11 +16,17 @@ export async function createPackage(formData: FormData) {
   const totalLessons = Number(formData.get("total_lessons"));
   const priceRaw = String(formData.get("price") ?? "").trim();
   const price = priceRaw ? Number(priceRaw) : null;
+  const paymentStatus = String(formData.get("payment_status") ?? "pending");
+  const initialPaid =
+    paymentStatus === "paid" && price != null ? price : 0;
 
   if (!studentId) return { error: "Selecione um aluno" };
   if (!title) return { error: "Título é obrigatório" };
   if (!Number.isFinite(totalLessons) || totalLessons < 1) {
     return { error: "Total de aulas deve ser pelo menos 1" };
+  }
+  if (!["pending", "paid"].includes(paymentStatus)) {
+    return { error: "Status de pagamento inválido" };
   }
 
   const { data, error } = await supabase
@@ -32,6 +38,9 @@ export async function createPackage(formData: FormData) {
       total_lessons: totalLessons,
       price,
       status: "active",
+      payment_status: paymentStatus,
+      amount_paid: initialPaid,
+      paid_at: paymentStatus === "paid" ? new Date().toISOString() : null,
     })
     .select("id")
     .single();
@@ -39,6 +48,7 @@ export async function createPackage(formData: FormData) {
   if (error || !data) return { error: error?.message ?? "Erro ao criar pacote" };
 
   revalidatePath("/pacotes");
+  revalidatePath("/faturamento");
   redirect(`/pacotes/${data.id}`);
 }
 

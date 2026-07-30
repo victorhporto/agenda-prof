@@ -61,6 +61,13 @@ export function PackageForm({ students }: { students: StudentOption[] }) {
           className="input mt-1"
         />
       </label>
+      <label className="block text-sm font-medium text-[var(--ink-muted)]">
+        Pagamento
+        <select name="payment_status" defaultValue="pending" className="input mt-1">
+          <option value="pending">Pendente</option>
+          <option value="paid">Já pago</option>
+        </select>
+      </label>
       {error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
