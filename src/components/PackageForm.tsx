@@ -68,6 +68,10 @@ export function PackageForm({ students }: { students: StudentOption[] }) {
           <option value="paid">Já pago</option>
         </select>
       </label>
+      <label className="block text-sm font-medium text-[var(--ink-muted)]">
+        Data prevista do pagamento
+        <input name="payment_due_date" type="date" className="input mt-1" />
+      </label>
       {error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}

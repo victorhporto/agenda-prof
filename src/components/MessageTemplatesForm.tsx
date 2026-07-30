@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import {
   DEFAULT_MSG_COMPLETED,
   DEFAULT_MSG_MISSED,
+  DEFAULT_MSG_PAYMENT_REMINDER,
+  DEFAULT_MSG_RENEWAL,
   DEFAULT_MSG_RESCHEDULED,
 } from "@/lib/messages/templates";
 import {
@@ -16,6 +18,8 @@ type Props = {
     msg_completed: string | null;
     msg_missed: string | null;
     msg_rescheduled: string | null;
+    msg_renewal: string | null;
+    msg_payment_reminder: string | null;
     msg_signature: string | null;
     msg_signature_enabled: boolean;
   };
@@ -40,6 +44,18 @@ const fields = [
     hint: "Variáveis: {aluno} {data_antiga} {data_nova}",
     defaultValue: DEFAULT_MSG_RESCHEDULED,
   },
+  {
+    name: "msg_renewal" as const,
+    title: "Renovação (última aula do pacote)",
+    hint: "Variáveis: {aluno} {total} {pacote} {data}",
+    defaultValue: DEFAULT_MSG_RENEWAL,
+  },
+  {
+    name: "msg_payment_reminder" as const,
+    title: "Lembrete de pagamento",
+    hint: "Variáveis: {aluno} {pacote} {valor} {valor_pago} {faltante} {data_prevista} {status}",
+    defaultValue: DEFAULT_MSG_PAYMENT_REMINDER,
+  },
 ];
 
 export function MessageTemplatesForm({ initial }: Props) {
@@ -54,6 +70,9 @@ export function MessageTemplatesForm({ initial }: Props) {
     msg_completed: initial.msg_completed ?? DEFAULT_MSG_COMPLETED,
     msg_missed: initial.msg_missed ?? DEFAULT_MSG_MISSED,
     msg_rescheduled: initial.msg_rescheduled ?? DEFAULT_MSG_RESCHEDULED,
+    msg_renewal: initial.msg_renewal ?? DEFAULT_MSG_RENEWAL,
+    msg_payment_reminder:
+      initial.msg_payment_reminder ?? DEFAULT_MSG_PAYMENT_REMINDER,
   });
 
   function onSave(formData: FormData) {
@@ -85,6 +104,8 @@ export function MessageTemplatesForm({ initial }: Props) {
         msg_completed: DEFAULT_MSG_COMPLETED,
         msg_missed: DEFAULT_MSG_MISSED,
         msg_rescheduled: DEFAULT_MSG_RESCHEDULED,
+        msg_renewal: DEFAULT_MSG_RENEWAL,
+        msg_payment_reminder: DEFAULT_MSG_PAYMENT_REMINDER,
       });
       setSignatureEnabled(false);
       setSignature("");

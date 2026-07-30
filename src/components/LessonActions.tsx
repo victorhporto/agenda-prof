@@ -20,6 +20,7 @@ export function LessonActions({ lessonId, status, phone }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [renewalMessage, setRenewalMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showReschedule, setShowReschedule] = useState(false);
   const [newDate, setNewDate] = useState(() => {
@@ -29,7 +30,14 @@ export function LessonActions({ lessonId, status, phone }: Props) {
     return toLocalInputValue(d);
   });
 
-  function run(action: () => Promise<{ error?: string; message?: string; newLessonId?: string }>) {
+  function run(
+    action: () => Promise<{
+      error?: string;
+      message?: string;
+      renewalMessage?: string | null;
+      newLessonId?: string;
+    }>,
+  ) {
     setError(null);
     startTransition(async () => {
       const result = await action();
@@ -38,6 +46,7 @@ export function LessonActions({ lessonId, status, phone }: Props) {
         return;
       }
       if (result.message) setMessage(result.message);
+      setRenewalMessage(result.renewalMessage ?? null);
       if (result.newLessonId) {
         router.push(`/aulas/${result.newLessonId}?msg=1`);
         router.refresh();
@@ -121,7 +130,20 @@ export function LessonActions({ lessonId, status, phone }: Props) {
         </p>
       )}
 
-      {message && <CopyMessage message={message} phone={phone} />}
+      {message && (
+        <CopyMessage
+          title="Mensagem da aula"
+          message={message}
+          phone={phone}
+        />
+      )}
+      {renewalMessage && (
+        <CopyMessage
+          title="Lembrete de renovação"
+          message={renewalMessage}
+          phone={phone}
+        />
+      )}
     </div>
   );
 }

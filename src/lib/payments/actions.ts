@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { paymentReminderMessage } from "@/lib/messages/templates";
+import { packageBalance } from "@/lib/utils";
 
 export async function updatePackagePayment(formData: FormData) {
   const supabase = await createClient();
@@ -14,6 +16,8 @@ export async function updatePackagePayment(formData: FormData) {
   const paymentStatus = String(formData.get("payment_status") ?? "pending");
   const amountRaw = String(formData.get("amount_paid") ?? "").trim();
   const notes = String(formData.get("payment_notes") ?? "").trim() || null;
+  const paymentDueDate =
+    String(formData.get("payment_due_date") ?? "").trim() || null;
   const amountPaid = amountRaw ? Number(amountRaw) : 0;
 
   if (!packageId) return { error: "Pacote obrigatório" };
@@ -61,6 +65,7 @@ export async function updatePackagePayment(formData: FormData) {
       amount_paid: finalAmount,
       paid_at: paidAt,
       payment_notes: notes,
+      payment_due_date: paymentDueDate,
     })
     .eq("id", packageId)
     .eq("teacher_id", user.id);
@@ -105,4 +110,65 @@ export async function markPackagePaid(packageId: string) {
   revalidatePath("/pacotes");
   revalidatePath(`/pacotes/${packageId}`);
   return { success: true };
+}
+
+export async function buildPaymentReminder(packageId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  const { data: pkg, error } = await supabase
+    .from("lesson_packages")
+    .select(
+      `
+      id,
+      title,
+      price,
+      amount_paid,
+      payment_status,
+      payment_due_date,
+      students ( name, phone )
+    `,
+    )
+    .eq("id", packageId)
+    .eq("teacher_id", user.id)
+    .single();
+
+  if (error || !pkg) return { error: "Pacote não encontrado" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("msg_payment_reminder, msg_signature, msg_signature_enabled")
+    .eq("id", user.id)
+    .single();
+
+  const student = pkg.students as {
+    name: string;
+    phone: string | null;
+  } | null;
+  const balance = packageBalance(pkg);
+
+  const message = paymentReminderMessage(
+    {
+      studentName: student?.name ?? "aluno",
+      packageTitle: pkg.title,
+      price: pkg.price,
+      amountPaid: balance.paid,
+      dueAmount: balance.due,
+      paymentDueDate: pkg.payment_due_date,
+      paymentStatus: pkg.payment_status,
+    },
+    profile?.msg_payment_reminder,
+    {
+      enabled: profile?.msg_signature_enabled ?? false,
+      text: profile?.msg_signature ?? null,
+    },
+  );
+
+  return {
+    message,
+    phone: student?.phone ?? null,
+  };
 }

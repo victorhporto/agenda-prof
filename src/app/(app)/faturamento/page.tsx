@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { MarkPaidButton } from "@/components/MarkPaidButton";
+import { PaymentReminderButton } from "@/components/PaymentReminderButton";
 import {
+  formatDateOnly,
   formatMoney,
+  isPaymentOverdue,
   packageBalance,
   paymentStatusLabel,
 } from "@/lib/utils";
@@ -27,11 +30,13 @@ export default async function FaturamentoPage({
       price,
       amount_paid,
       payment_status,
+      payment_due_date,
       paid_at,
       created_at,
       students ( name )
     `,
     )
+    .order("payment_due_date", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
 
   if (filter === "pending" || filter === "partial" || filter === "paid") {
@@ -42,7 +47,7 @@ export default async function FaturamentoPage({
 
   const allQuery = await supabase
     .from("lesson_packages")
-    .select("price, amount_paid, payment_status");
+    .select("price, amount_paid, payment_status, payment_due_date");
 
   const all = allQuery.data ?? [];
   const totals = all.reduce(
@@ -54,6 +59,9 @@ export default async function FaturamentoPage({
       if (pkg.payment_status === "pending") acc.pendingCount += 1;
       if (pkg.payment_status === "partial") acc.partialCount += 1;
       if (pkg.payment_status === "paid") acc.paidCount += 1;
+      if (isPaymentOverdue(pkg.payment_status, pkg.payment_due_date)) {
+        acc.overdueCount += 1;
+      }
       return acc;
     },
     {
@@ -63,6 +71,7 @@ export default async function FaturamentoPage({
       pendingCount: 0,
       partialCount: 0,
       paidCount: 0,
+      overdueCount: 0,
     },
   );
 
@@ -80,7 +89,8 @@ export default async function FaturamentoPage({
           Faturamento
         </h1>
         <p className="mt-1 text-[var(--ink-muted)]">
-          Acompanhe valores vendidos, recebidos e pendentes dos pacotes.
+          Acompanhe valores vendidos, recebidos e a data prevista de cada
+          pagamento.
         </p>
       </div>
 
@@ -100,6 +110,12 @@ export default async function FaturamentoPage({
           <p className="mt-1 text-2xl font-semibold text-[var(--warning)]">
             {formatMoney(totals.due)}
           </p>
+          {totals.overdueCount > 0 && (
+            <p className="mt-1 text-xs font-medium text-[var(--danger)]">
+              {totals.overdueCount} atrasado
+              {totals.overdueCount === 1 ? "" : "s"}
+            </p>
+          )}
         </div>
       </div>
 
@@ -138,6 +154,11 @@ export default async function FaturamentoPage({
           {packages.map((pkg) => {
             const student = pkg.students as { name: string } | null;
             const balance = packageBalance(pkg);
+            const dueLabel = formatDateOnly(pkg.payment_due_date);
+            const overdue = isPaymentOverdue(
+              pkg.payment_status,
+              pkg.payment_due_date,
+            );
             return (
               <li key={pkg.id} className="panel p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -169,15 +190,28 @@ export default async function FaturamentoPage({
                           falta {formatMoney(balance.due)}
                         </span>
                       )}
+                      {dueLabel && (
+                        <span
+                          className={
+                            overdue
+                              ? "font-medium text-[var(--danger)]"
+                              : "text-[var(--ink-muted)]"
+                          }
+                        >
+                          previsto {dueLabel}
+                          {overdue ? " · atrasado" : ""}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-44">
                     {pkg.payment_status !== "paid" && (
                       <MarkPaidButton packageId={pkg.id} />
                     )}
+                    <PaymentReminderButton packageId={pkg.id} />
                     <Link
                       href={`/pacotes/${pkg.id}`}
-                      className="btn-secondary px-3 py-1.5 text-sm"
+                      className="btn-secondary px-3 py-1.5 text-center text-sm"
                     >
                       Detalhes
                     </Link>

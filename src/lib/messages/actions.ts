@@ -14,6 +14,9 @@ export async function updateMessageTemplates(formData: FormData) {
   const msgMissed = String(formData.get("msg_missed") ?? "").trim() || null;
   const msgRescheduled =
     String(formData.get("msg_rescheduled") ?? "").trim() || null;
+  const msgRenewal = String(formData.get("msg_renewal") ?? "").trim() || null;
+  const msgPaymentReminder =
+    String(formData.get("msg_payment_reminder") ?? "").trim() || null;
   const signatureEnabled = formData.get("msg_signature_enabled") === "on";
   const msgSignature =
     String(formData.get("msg_signature") ?? "").trim() || null;
@@ -28,6 +31,8 @@ export async function updateMessageTemplates(formData: FormData) {
       msg_completed: msgCompleted,
       msg_missed: msgMissed,
       msg_rescheduled: msgRescheduled,
+      msg_renewal: msgRenewal,
+      msg_payment_reminder: msgPaymentReminder,
       msg_signature: msgSignature,
       msg_signature_enabled: signatureEnabled,
     })
@@ -37,6 +42,8 @@ export async function updateMessageTemplates(formData: FormData) {
 
   revalidatePath("/mensagens");
   revalidatePath("/aulas");
+  revalidatePath("/faturamento");
+  revalidatePath("/pacotes");
   return { success: true };
 }
 
@@ -53,6 +60,8 @@ export async function resetMessageTemplates() {
       msg_completed: null,
       msg_missed: null,
       msg_rescheduled: null,
+      msg_renewal: null,
+      msg_payment_reminder: null,
       msg_signature: null,
       msg_signature_enabled: false,
     })

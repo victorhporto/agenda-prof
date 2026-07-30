@@ -1,10 +1,13 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatDateOnly, formatMoney, paymentStatusLabel } from "@/lib/utils";
 
 export type MessageTemplates = {
   msg_completed: string | null;
   msg_missed: string | null;
   msg_rescheduled: string | null;
+  msg_renewal: string | null;
+  msg_payment_reminder: string | null;
   msg_signature: string | null;
   msg_signature_enabled: boolean;
 };
@@ -17,6 +20,12 @@ export const DEFAULT_MSG_MISSED =
 
 export const DEFAULT_MSG_RESCHEDULED =
   "Olá! A aula de {aluno} prevista para {data_antiga} foi remarcada para {data_nova}.";
+
+export const DEFAULT_MSG_RENEWAL =
+  "Olá! Encerramos o pacote de {total} aulas de {aluno} ({pacote}) com a aula de {data}. Se quiser continuar, podemos renovar o próximo pacote. Me avise!";
+
+export const DEFAULT_MSG_PAYMENT_REMINDER =
+  "Olá! Passando para lembrar do pagamento do pacote {pacote} de {aluno}. Valor: {valor}. Já pago: {valor_pago}. Falta: {faltante}. Data prevista: {data_prevista}. Status: {status}.";
 
 export type SignatureOptions = {
   enabled?: boolean | null;
@@ -97,6 +106,52 @@ export function rescheduledLessonMessage(
     aluno: params.studentName,
     data_antiga: formatLessonDate(params.oldDate),
     data_nova: formatLessonDate(params.newDate),
+  });
+  return withSignature(message, signature);
+}
+
+export function renewalLessonMessage(
+  params: {
+    studentName: string;
+    totalLessons: number;
+    packageTitle: string;
+    scheduledAt: Date | string;
+  },
+  customTemplate?: string | null,
+  signature?: SignatureOptions,
+) {
+  const template = customTemplate?.trim() || DEFAULT_MSG_RENEWAL;
+  const message = applyTemplate(template, {
+    aluno: params.studentName,
+    total: params.totalLessons,
+    pacote: params.packageTitle,
+    data: formatLessonDate(params.scheduledAt),
+  });
+  return withSignature(message, signature);
+}
+
+export function paymentReminderMessage(
+  params: {
+    studentName: string;
+    packageTitle: string;
+    price: number | null;
+    amountPaid: number;
+    dueAmount: number;
+    paymentDueDate: string | null;
+    paymentStatus: string;
+  },
+  customTemplate?: string | null,
+  signature?: SignatureOptions,
+) {
+  const template = customTemplate?.trim() || DEFAULT_MSG_PAYMENT_REMINDER;
+  const message = applyTemplate(template, {
+    aluno: params.studentName,
+    pacote: params.packageTitle,
+    valor: formatMoney(params.price),
+    valor_pago: formatMoney(params.amountPaid),
+    faltante: formatMoney(params.dueAmount),
+    data_prevista: formatDateOnly(params.paymentDueDate) ?? "não definida",
+    status: paymentStatusLabel(params.paymentStatus),
   });
   return withSignature(message, signature);
 }

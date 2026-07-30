@@ -107,6 +107,7 @@ export default async function PacoteDetailPage({ params }: Props) {
         amountPaid={Number(pkg.amount_paid ?? 0)}
         paymentNotes={pkg.payment_notes}
         paidAt={pkg.paid_at}
+        paymentDueDate={pkg.payment_due_date}
       />
 
       <section>

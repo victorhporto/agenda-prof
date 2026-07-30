@@ -6,9 +6,11 @@ import { whatsappUrl } from "@/lib/whatsapp";
 export function CopyMessage({
   message,
   phone,
+  title,
 }: {
   message: string;
   phone?: string | null;
+  title?: string;
 }) {
   const [copied, setCopied] = useState(false);
   const waLink = whatsappUrl(phone ?? "", message);
@@ -21,6 +23,11 @@ export function CopyMessage({
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+      {title && (
+        <p className="mb-2 text-sm font-semibold text-[var(--ink-muted)]">
+          {title}
+        </p>
+      )}
       <p className="mb-3 whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)]">
         {message}
       </p>

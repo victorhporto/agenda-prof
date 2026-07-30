@@ -18,6 +18,7 @@ export type Database = {
           created_at: string;
           id: string;
           paid_at: string | null;
+          payment_due_date: string | null;
           payment_notes: string | null;
           payment_status: string;
           price: number | null;
@@ -32,6 +33,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           paid_at?: string | null;
+          payment_due_date?: string | null;
           payment_notes?: string | null;
           payment_status?: string;
           price?: number | null;
@@ -46,6 +48,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           paid_at?: string | null;
+          payment_due_date?: string | null;
           payment_notes?: string | null;
           payment_status?: string;
           price?: number | null;
@@ -140,6 +143,8 @@ export type Database = {
           id: string;
           msg_completed: string | null;
           msg_missed: string | null;
+          msg_payment_reminder: string | null;
+          msg_renewal: string | null;
           msg_rescheduled: string | null;
           msg_signature: string | null;
           msg_signature_enabled: boolean;
@@ -150,6 +155,8 @@ export type Database = {
           id: string;
           msg_completed?: string | null;
           msg_missed?: string | null;
+          msg_payment_reminder?: string | null;
+          msg_renewal?: string | null;
           msg_rescheduled?: string | null;
           msg_signature?: string | null;
           msg_signature_enabled?: boolean;
@@ -160,6 +167,8 @@ export type Database = {
           id?: string;
           msg_completed?: string | null;
           msg_missed?: string | null;
+          msg_payment_reminder?: string | null;
+          msg_renewal?: string | null;
           msg_rescheduled?: string | null;
           msg_signature?: string | null;
           msg_signature_enabled?: boolean;

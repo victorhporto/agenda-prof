@@ -6,6 +6,7 @@ import { CopyMessage } from "@/components/CopyMessage";
 import {
   completedLessonMessage,
   missedLessonMessage,
+  renewalLessonMessage,
   rescheduledLessonMessage,
 } from "@/lib/messages/templates";
 import { formatShortDate, statusLabel } from "@/lib/utils";
@@ -44,7 +45,7 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "msg_completed, msg_missed, msg_rescheduled, msg_signature, msg_signature_enabled",
+      "msg_completed, msg_missed, msg_rescheduled, msg_renewal, msg_signature, msg_signature_enabled",
     )
     .eq("id", user!.id)
     .single();
@@ -63,6 +64,8 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
   };
 
   let storedMessage: string | null = null;
+  let renewalMessage: string | null = null;
+
   if (lesson.status === "completed" && lesson.sequence_number && pkg) {
     const remaining = Math.max(
       pkg.total_lessons - lesson.sequence_number,
@@ -79,6 +82,18 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
       profile?.msg_completed,
       signature,
     );
+    if (remaining === 0) {
+      renewalMessage = renewalLessonMessage(
+        {
+          studentName,
+          totalLessons: pkg.total_lessons,
+          packageTitle: pkg.title,
+          scheduledAt: lesson.scheduled_at,
+        },
+        profile?.msg_renewal,
+        signature,
+      );
+    }
   } else if (lesson.status === "missed") {
     storedMessage = missedLessonMessage(
       {
@@ -107,7 +122,8 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
     }
   }
 
-  const showStored = Boolean(msg) || lesson.status !== "scheduled" || storedMessage;
+  const showStored =
+    Boolean(msg) || lesson.status !== "scheduled" || storedMessage;
 
   return (
     <div className="space-y-6">
@@ -169,27 +185,27 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
       />
 
       {showStored && storedMessage && lesson.status !== "scheduled" && (
-        <div>
-          <h2 className="mb-2 text-sm font-semibold text-[var(--ink-muted)]">
-            Mensagem para enviar
-          </h2>
-          <CopyMessage
-            message={storedMessage}
-            phone={pkg?.students?.phone}
-          />
-        </div>
+        <CopyMessage
+          title="Mensagem da aula"
+          message={storedMessage}
+          phone={pkg?.students?.phone}
+        />
+      )}
+
+      {renewalMessage && (
+        <CopyMessage
+          title="Lembrete de renovação"
+          message={renewalMessage}
+          phone={pkg?.students?.phone}
+        />
       )}
 
       {msg && lesson.status === "scheduled" && storedMessage && (
-        <div>
-          <h2 className="mb-2 text-sm font-semibold text-[var(--ink-muted)]">
-            Mensagem de remarcação
-          </h2>
-          <CopyMessage
-            message={storedMessage}
-            phone={pkg?.students?.phone}
-          />
-        </div>
+        <CopyMessage
+          title="Mensagem de remarcação"
+          message={storedMessage}
+          phone={pkg?.students?.phone}
+        />
       )}
     </div>
   );

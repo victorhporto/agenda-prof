@@ -17,6 +17,8 @@ export async function createPackage(formData: FormData) {
   const priceRaw = String(formData.get("price") ?? "").trim();
   const price = priceRaw ? Number(priceRaw) : null;
   const paymentStatus = String(formData.get("payment_status") ?? "pending");
+  const paymentDueDate =
+    String(formData.get("payment_due_date") ?? "").trim() || null;
   const initialPaid =
     paymentStatus === "paid" && price != null ? price : 0;
 
@@ -41,6 +43,7 @@ export async function createPackage(formData: FormData) {
       payment_status: paymentStatus,
       amount_paid: initialPaid,
       paid_at: paymentStatus === "paid" ? new Date().toISOString() : null,
+      payment_due_date: paymentDueDate,
     })
     .select("id")
     .single();

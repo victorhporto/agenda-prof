@@ -55,3 +55,21 @@ export function packageBalance(pkg: {
   const due = Math.max(price - paid, 0);
   return { price, paid, due };
 }
+
+export function formatDateOnly(value: string | null | undefined) {
+  if (!value) return null;
+  const [year, month, day] = value.slice(0, 10).split("-");
+  if (!year || !month || !day) return null;
+  return `${day}/${month}/${year}`;
+}
+
+export function isPaymentOverdue(
+  paymentStatus: string,
+  paymentDueDate: string | null | undefined,
+) {
+  if (paymentStatus === "paid" || !paymentDueDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(`${paymentDueDate.slice(0, 10)}T00:00:00`);
+  return due < today;
+}

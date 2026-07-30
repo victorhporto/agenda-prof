@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   completedLessonMessage,
   missedLessonMessage,
+  renewalLessonMessage,
   rescheduledLessonMessage,
 } from "@/lib/messages/templates";
 
@@ -24,7 +25,7 @@ async function getMessageTemplates(
   const { data } = await supabase
     .from("profiles")
     .select(
-      "msg_completed, msg_missed, msg_rescheduled, msg_signature, msg_signature_enabled",
+      "msg_completed, msg_missed, msg_rescheduled, msg_renewal, msg_payment_reminder, msg_signature, msg_signature_enabled",
     )
     .eq("id", teacherId)
     .single();
@@ -78,6 +79,7 @@ export async function completeLesson(lessonId: string) {
   const sequenceNumber = (count ?? 0) + 1;
   const pkg = lesson.lesson_packages as {
     total_lessons: number;
+    title: string;
     students: { name: string } | null;
   } | null;
 
@@ -104,7 +106,9 @@ export async function completeLesson(lessonId: string) {
     return { error: updateError.message };
   }
 
-  if (sequenceNumber >= pkg.total_lessons) {
+  const isLastLesson = sequenceNumber >= pkg.total_lessons;
+
+  if (isLastLesson) {
     await supabase
       .from("lesson_packages")
       .update({ status: "closed" })
@@ -114,6 +118,7 @@ export async function completeLesson(lessonId: string) {
   const remaining = pkg.total_lessons - sequenceNumber;
   const studentName = pkg.students?.name ?? "aluno";
   const templates = await getMessageTemplates(supabase, user.id);
+  const signature = signatureFrom(templates);
   const message = completedLessonMessage(
     {
       studentName,
@@ -123,14 +128,27 @@ export async function completeLesson(lessonId: string) {
       remaining,
     },
     templates?.msg_completed,
-    signatureFrom(templates),
+    signature,
   );
+
+  const renewalMessage = isLastLesson
+    ? renewalLessonMessage(
+        {
+          studentName,
+          totalLessons: pkg.total_lessons,
+          packageTitle: pkg.title,
+          scheduledAt: lesson.scheduled_at,
+        },
+        templates?.msg_renewal,
+        signature,
+      )
+    : null;
 
   revalidatePath("/agenda");
   revalidatePath("/pacotes");
   revalidatePath(`/aulas/${lessonId}`);
 
-  return { message, sequenceNumber, remaining };
+  return { message, renewalMessage, sequenceNumber, remaining };
 }
 
 export async function markLessonMissed(lessonId: string) {

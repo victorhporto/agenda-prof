@@ -5,7 +5,13 @@ import {
   markPackagePaid,
   updatePackagePayment,
 } from "@/lib/payments/actions";
-import { formatMoney, paymentStatusLabel } from "@/lib/utils";
+import {
+  formatDateOnly,
+  formatMoney,
+  isPaymentOverdue,
+  paymentStatusLabel,
+} from "@/lib/utils";
+import { PaymentReminderButton } from "@/components/PaymentReminderButton";
 
 type Props = {
   packageId: string;
@@ -14,6 +20,7 @@ type Props = {
   amountPaid: number;
   paymentNotes: string | null;
   paidAt: string | null;
+  paymentDueDate: string | null;
   compact?: boolean;
 };
 
@@ -24,12 +31,15 @@ export function PaymentPanel({
   amountPaid,
   paymentNotes,
   paidAt,
+  paymentDueDate,
   compact = false,
 }: Props) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState(paymentStatus);
   const [open, setOpen] = useState(!compact);
+  const overdue = isPaymentOverdue(paymentStatus, paymentDueDate);
+  const dueLabel = formatDateOnly(paymentDueDate);
 
   function onSave(formData: FormData) {
     setError(null);
@@ -66,6 +76,18 @@ export function PaymentPanel({
               {paymentStatusLabel(paymentStatus)}
             </span>
           </p>
+          {dueLabel && (
+            <p
+              className={`mt-1 text-xs ${
+                overdue
+                  ? "font-medium text-[var(--danger)]"
+                  : "text-[var(--ink-muted)]"
+              }`}
+            >
+              Previsto para {dueLabel}
+              {overdue ? " · atrasado" : ""}
+            </p>
+          )}
           {paidAt && (
             <p className="mt-1 text-xs text-[var(--ink-muted)]">
               Pago em {new Date(paidAt).toLocaleDateString("pt-BR")}
@@ -94,6 +116,8 @@ export function PaymentPanel({
         </button>
       )}
 
+      <PaymentReminderButton packageId={packageId} />
+
       {open && (
         <form action={onSave} className="space-y-3 border-t border-[var(--border)] pt-3">
           <input type="hidden" name="package_id" value={packageId} />
@@ -109,6 +133,15 @@ export function PaymentPanel({
               <option value="partial">Parcial</option>
               <option value="paid">Pago</option>
             </select>
+          </label>
+          <label className="block text-sm font-medium text-[var(--ink-muted)]">
+            Data prevista do pagamento
+            <input
+              name="payment_due_date"
+              type="date"
+              defaultValue={paymentDueDate?.slice(0, 10) ?? ""}
+              className="input mt-1"
+            />
           </label>
           <label className="block text-sm font-medium text-[var(--ink-muted)]">
             Valor já pago
