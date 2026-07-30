@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { StudentForm } from "@/components/StudentForm";
-import { DeleteStudentButton } from "@/components/DeleteStudentButton";
+import { StudentCard } from "@/components/StudentCard";
 
 export default async function AlunosPage() {
   const supabase = await createClient();
@@ -33,22 +33,7 @@ export default async function AlunosPage() {
       ) : (
         <ul className="space-y-3">
           {students.map((student) => (
-            <li key={student.id} className="panel flex items-start justify-between gap-3 p-4">
-              <div>
-                <p className="font-semibold">{student.name}</p>
-                {student.phone && (
-                  <p className="text-sm text-[var(--ink-muted)]">
-                    {student.phone}
-                  </p>
-                )}
-                {student.notes && (
-                  <p className="mt-1 text-sm text-[var(--ink-muted)]">
-                    {student.notes}
-                  </p>
-                )}
-              </div>
-              <DeleteStudentButton id={student.id} />
-            </li>
+            <StudentCard key={student.id} student={student} />
           ))}
         </ul>
       )}

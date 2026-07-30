@@ -12,6 +12,54 @@ export type Database = {
   };
   public: {
     Tables: {
+      payment_entries: {
+        Row: {
+          amount: number;
+          created_at: string;
+          id: string;
+          method: string | null;
+          notes: string | null;
+          package_id: string;
+          paid_at: string;
+          teacher_id: string;
+        };
+        Insert: {
+          amount: number;
+          created_at?: string;
+          id?: string;
+          method?: string | null;
+          notes?: string | null;
+          package_id: string;
+          paid_at?: string;
+          teacher_id: string;
+        };
+        Update: {
+          amount?: number;
+          created_at?: string;
+          id?: string;
+          method?: string | null;
+          notes?: string | null;
+          package_id?: string;
+          paid_at?: string;
+          teacher_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payment_entries_package_id_fkey";
+            columns: ["package_id"];
+            isOneToOne: false;
+            referencedRelation: "lesson_packages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payment_entries_teacher_id_fkey";
+            columns: ["teacher_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       lesson_packages: {
         Row: {
           amount_paid: number;

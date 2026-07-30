@@ -26,6 +26,13 @@ export default async function PacoteDetailPage({ params }: Props) {
 
   if (!pkg) notFound();
 
+  const { data: paymentEntries } = await supabase
+    .from("payment_entries")
+    .select("id, amount, paid_at, method, notes")
+    .eq("package_id", id)
+    .order("paid_at", { ascending: false })
+    .order("created_at", { ascending: false });
+
   const lessons = [...(pkg.lessons ?? [])].sort(
     (a, b) =>
       new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime(),
@@ -108,6 +115,13 @@ export default async function PacoteDetailPage({ params }: Props) {
         paymentNotes={pkg.payment_notes}
         paidAt={pkg.paid_at}
         paymentDueDate={pkg.payment_due_date}
+        entries={(paymentEntries ?? []).map((entry) => ({
+          id: entry.id,
+          amount: Number(entry.amount),
+          paid_at: entry.paid_at,
+          method: entry.method,
+          notes: entry.notes,
+        }))}
       />
 
       <section>

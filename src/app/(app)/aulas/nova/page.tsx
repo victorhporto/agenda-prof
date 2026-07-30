@@ -54,8 +54,8 @@ export default async function NovaAulaPage({ searchParams }: Props) {
           Agendar aula
         </h1>
         <p className="mt-1 text-[var(--ink-muted)]">
-          Escolha a data ou repita semanalmente para preencher o pacote no mesmo
-          dia e horário.
+          Escolha a data ou repita semanal/quinzenalmente para preencher o
+          pacote no mesmo horário.
         </p>
       </div>
       <LessonForm packages={options} defaultPackageId={packageId} />

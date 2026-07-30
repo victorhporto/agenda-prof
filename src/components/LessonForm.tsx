@@ -11,6 +11,8 @@ type PackageOption = {
   remainingSlots: number;
 };
 
+type Recurrence = "once" | "weekly" | "biweekly";
+
 export function LessonForm({
   packages,
   defaultPackageId,
@@ -21,7 +23,7 @@ export function LessonForm({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [packageId, setPackageId] = useState(defaultPackageId ?? "");
-  const [recurrence, setRecurrence] = useState<"once" | "weekly">("once");
+  const [recurrence, setRecurrence] = useState<Recurrence>("once");
   const defaultDate = (() => {
     const d = new Date();
     d.setMinutes(0, 0, 0);
@@ -56,8 +58,8 @@ export function LessonForm({
   }
 
   const submitLabel =
-    recurrence === "weekly" && remaining > 1
-      ? `Agendar ${remaining} aulas semanais`
+    recurrence !== "once" && remaining > 1
+      ? `Agendar ${remaining} aulas ${recurrence === "weekly" ? "semanais" : "quinzenais"}`
       : "Agendar aula";
 
   return (
@@ -129,7 +131,28 @@ export function LessonForm({
             </span>
             <span className="text-sm text-[var(--ink-muted)]">
               {remaining > 1
-                ? `Preenche as ${remaining} vagas restantes do pacote, no mesmo dia da semana e horário.`
+                ? `Preenche as ${remaining} vagas restantes, a cada 7 dias.`
+                : "Disponível quando o pacote tiver mais de 1 vaga restante."}
+            </span>
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3">
+          <input
+            type="radio"
+            name="recurrence"
+            value="biweekly"
+            checked={recurrence === "biweekly"}
+            onChange={() => setRecurrence("biweekly")}
+            className="mt-1"
+            disabled={remaining <= 1}
+          />
+          <span>
+            <span className="block font-medium text-[var(--ink)]">
+              Repetir quinzenalmente
+            </span>
+            <span className="text-sm text-[var(--ink-muted)]">
+              {remaining > 1
+                ? `Preenche as ${remaining} vagas restantes, a cada 14 dias.`
                 : "Disponível quando o pacote tiver mais de 1 vaga restante."}
             </span>
           </span>

@@ -50,6 +50,16 @@ export async function createPackage(formData: FormData) {
 
   if (error || !data) return { error: error?.message ?? "Erro ao criar pacote" };
 
+  if (initialPaid > 0) {
+    await supabase.from("payment_entries").insert({
+      package_id: data.id,
+      teacher_id: user.id,
+      amount: initialPaid,
+      paid_at: new Date().toISOString().slice(0, 10),
+      notes: "Pagamento na criação do pacote",
+    });
+  }
+
   revalidatePath("/pacotes");
   revalidatePath("/faturamento");
   redirect(`/pacotes/${data.id}`);
@@ -69,7 +79,7 @@ export async function createLesson(formData: FormData) {
 
   if (!packageId) return { error: "Pacote obrigatório" };
   if (!scheduledAt) return { error: "Data obrigatória" };
-  if (recurrence !== "once" && recurrence !== "weekly") {
+  if (recurrence !== "once" && recurrence !== "weekly" && recurrence !== "biweekly") {
     return { error: "Opção de repetição inválida" };
   }
 
@@ -100,7 +110,8 @@ export async function createLesson(formData: FormData) {
     };
   }
 
-  const count = recurrence === "weekly" ? remainingSlots : 1;
+  const count = recurrence === "once" ? 1 : remainingSlots;
+  const stepDays = recurrence === "biweekly" ? 14 : 7;
   const start = new Date(scheduledAt);
   if (Number.isNaN(start.getTime())) {
     return { error: "Data inválida" };
@@ -108,7 +119,7 @@ export async function createLesson(formData: FormData) {
 
   const rows = Array.from({ length: count }, (_, index) => {
     const date = new Date(start);
-    date.setDate(date.getDate() + index * 7);
+    date.setDate(date.getDate() + index * stepDays);
     return {
       teacher_id: user.id,
       package_id: packageId,

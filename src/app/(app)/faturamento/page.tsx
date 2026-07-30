@@ -35,15 +35,40 @@ export default async function FaturamentoPage({
       created_at,
       students ( name )
     `,
-    )
-    .order("payment_due_date", { ascending: true, nullsFirst: false })
-    .order("created_at", { ascending: false });
+    );
 
   if (filter === "pending" || filter === "partial" || filter === "paid") {
     query = query.eq("payment_status", filter);
   }
 
-  const { data: packages } = await query;
+  const { data: rawPackages } = await query;
+
+  const packages = [...(rawPackages ?? [])].sort((a, b) => {
+    const rank = (pkg: {
+      payment_status: string;
+      payment_due_date: string | null;
+      created_at: string;
+    }) => {
+      if (pkg.payment_status === "paid") {
+        return { group: 2, due: Number.POSITIVE_INFINITY };
+      }
+      if (!pkg.payment_due_date) {
+        return { group: 1, due: Number.POSITIVE_INFINITY };
+      }
+      return {
+        group: 0,
+        due: new Date(`${pkg.payment_due_date.slice(0, 10)}T00:00:00`).getTime(),
+      };
+    };
+
+    const ra = rank(a);
+    const rb = rank(b);
+    if (ra.group !== rb.group) return ra.group - rb.group;
+    if (ra.due !== rb.due) return ra.due - rb.due;
+    return (
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  });
 
   const allQuery = await supabase
     .from("lesson_packages")
@@ -89,8 +114,8 @@ export default async function FaturamentoPage({
           Faturamento
         </h1>
         <p className="mt-1 text-[var(--ink-muted)]">
-          Acompanhe valores vendidos, recebidos e a data prevista de cada
-          pagamento.
+          Acompanhe valores, datas previstas e atrasos. Os mais atrasados
+          aparecem primeiro.
         </p>
       </div>
 

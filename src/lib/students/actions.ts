@@ -29,6 +29,35 @@ export async function createStudent(formData: FormData) {
   return { success: true };
 }
 
+export async function updateStudent(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+
+  if (!id) return { error: "Aluno inválido" };
+  if (!name) return { error: "Nome é obrigatório" };
+
+  const { error } = await supabase
+    .from("students")
+    .update({ name, phone, notes })
+    .eq("id", id)
+    .eq("teacher_id", user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/alunos");
+  revalidatePath("/pacotes");
+  revalidatePath("/agenda");
+  return { success: true };
+}
+
 export async function deleteStudent(id: string) {
   const supabase = await createClient();
   const {

@@ -5,7 +5,70 @@ import { createClient } from "@/lib/supabase/server";
 import { paymentReminderMessage } from "@/lib/messages/templates";
 import { packageBalance } from "@/lib/utils";
 
-export async function updatePackagePayment(formData: FormData) {
+type ServerClient = Awaited<ReturnType<typeof createClient>>;
+
+async function syncPackagePaymentTotals(
+  supabase: ServerClient,
+  packageId: string,
+  teacherId: string,
+) {
+  const { data: pkg } = await supabase
+    .from("lesson_packages")
+    .select("id, price")
+    .eq("id", packageId)
+    .eq("teacher_id", teacherId)
+    .single();
+
+  if (!pkg) return { error: "Pacote não encontrado" };
+
+  const { data: entries } = await supabase
+    .from("payment_entries")
+    .select("amount")
+    .eq("package_id", packageId)
+    .eq("teacher_id", teacherId);
+
+  const amountPaid = (entries ?? []).reduce(
+    (sum, entry) => sum + Number(entry.amount),
+    0,
+  );
+  const price = Number(pkg.price ?? 0);
+
+  let paymentStatus: "pending" | "partial" | "paid" = "pending";
+  let paidAt: string | null = null;
+
+  if (amountPaid <= 0) {
+    paymentStatus = "pending";
+  } else if (price > 0 && amountPaid >= price) {
+    paymentStatus = "paid";
+    paidAt = new Date().toISOString();
+  } else if (price <= 0 && amountPaid > 0) {
+    paymentStatus = "paid";
+    paidAt = new Date().toISOString();
+  } else {
+    paymentStatus = "partial";
+  }
+
+  const { error } = await supabase
+    .from("lesson_packages")
+    .update({
+      amount_paid: amountPaid,
+      payment_status: paymentStatus,
+      paid_at: paidAt,
+    })
+    .eq("id", packageId)
+    .eq("teacher_id", teacherId);
+
+  if (error) return { error: error.message };
+  return { success: true as const, amountPaid, paymentStatus };
+}
+
+function revalidatePaymentPaths(packageId: string) {
+  revalidatePath("/faturamento");
+  revalidatePath("/pacotes");
+  revalidatePath(`/pacotes/${packageId}`);
+}
+
+export async function updatePackagePaymentMeta(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -13,57 +76,15 @@ export async function updatePackagePayment(formData: FormData) {
   if (!user) return { error: "Não autenticado" };
 
   const packageId = String(formData.get("package_id") ?? "");
-  const paymentStatus = String(formData.get("payment_status") ?? "pending");
-  const amountRaw = String(formData.get("amount_paid") ?? "").trim();
   const notes = String(formData.get("payment_notes") ?? "").trim() || null;
   const paymentDueDate =
     String(formData.get("payment_due_date") ?? "").trim() || null;
-  const amountPaid = amountRaw ? Number(amountRaw) : 0;
 
   if (!packageId) return { error: "Pacote obrigatório" };
-  if (!["pending", "partial", "paid"].includes(paymentStatus)) {
-    return { error: "Status de pagamento inválido" };
-  }
-  if (!Number.isFinite(amountPaid) || amountPaid < 0) {
-    return { error: "Valor pago inválido" };
-  }
-
-  const { data: pkg, error: pkgError } = await supabase
-    .from("lesson_packages")
-    .select("id, price")
-    .eq("id", packageId)
-    .eq("teacher_id", user.id)
-    .single();
-
-  if (pkgError || !pkg) return { error: "Pacote não encontrado" };
-
-  const price = Number(pkg.price ?? 0);
-  let finalAmount = amountPaid;
-  let finalStatus = paymentStatus;
-  let paidAt: string | null = null;
-
-  if (paymentStatus === "paid") {
-    finalAmount = amountPaid > 0 ? amountPaid : price;
-    paidAt = new Date().toISOString();
-  } else if (paymentStatus === "partial") {
-    if (finalAmount <= 0) {
-      return { error: "Informe o valor já pago no pagamento parcial" };
-    }
-    if (price > 0 && finalAmount >= price) {
-      finalStatus = "paid";
-      paidAt = new Date().toISOString();
-    }
-  } else {
-    finalAmount = 0;
-    paidAt = null;
-  }
 
   const { error } = await supabase
     .from("lesson_packages")
     .update({
-      payment_status: finalStatus,
-      amount_paid: finalAmount,
-      paid_at: paidAt,
       payment_notes: notes,
       payment_due_date: paymentDueDate,
     })
@@ -72,9 +93,76 @@ export async function updatePackagePayment(formData: FormData) {
 
   if (error) return { error: error.message };
 
-  revalidatePath("/faturamento");
-  revalidatePath("/pacotes");
-  revalidatePath(`/pacotes/${packageId}`);
+  revalidatePaymentPaths(packageId);
+  return { success: true };
+}
+
+export async function addPaymentEntry(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  const packageId = String(formData.get("package_id") ?? "");
+  const amount = Number(String(formData.get("amount") ?? "").trim());
+  const paidAt =
+    String(formData.get("paid_at") ?? "").trim() ||
+    new Date().toISOString().slice(0, 10);
+  const method = String(formData.get("method") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+
+  if (!packageId) return { error: "Pacote obrigatório" };
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { error: "Informe um valor maior que zero" };
+  }
+
+  const { data: pkg } = await supabase
+    .from("lesson_packages")
+    .select("id")
+    .eq("id", packageId)
+    .eq("teacher_id", user.id)
+    .single();
+
+  if (!pkg) return { error: "Pacote não encontrado" };
+
+  const { error } = await supabase.from("payment_entries").insert({
+    package_id: packageId,
+    teacher_id: user.id,
+    amount,
+    paid_at: paidAt,
+    method,
+    notes,
+  });
+
+  if (error) return { error: error.message };
+
+  const sync = await syncPackagePaymentTotals(supabase, packageId, user.id);
+  if (sync.error) return { error: sync.error };
+
+  revalidatePaymentPaths(packageId);
+  return { success: true };
+}
+
+export async function deletePaymentEntry(entryId: string, packageId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  const { error } = await supabase
+    .from("payment_entries")
+    .delete()
+    .eq("id", entryId)
+    .eq("teacher_id", user.id);
+
+  if (error) return { error: error.message };
+
+  const sync = await syncPackagePaymentTotals(supabase, packageId, user.id);
+  if (sync.error) return { error: sync.error };
+
+  revalidatePaymentPaths(packageId);
   return { success: true };
 }
 
@@ -87,28 +175,33 @@ export async function markPackagePaid(packageId: string) {
 
   const { data: pkg, error: pkgError } = await supabase
     .from("lesson_packages")
-    .select("id, price")
+    .select("id, price, amount_paid")
     .eq("id", packageId)
     .eq("teacher_id", user.id)
     .single();
 
   if (pkgError || !pkg) return { error: "Pacote não encontrado" };
 
-  const { error } = await supabase
-    .from("lesson_packages")
-    .update({
-      payment_status: "paid",
-      amount_paid: Number(pkg.price ?? 0),
-      paid_at: new Date().toISOString(),
-    })
-    .eq("id", packageId)
-    .eq("teacher_id", user.id);
+  const remaining = Math.max(
+    Number(pkg.price ?? 0) - Number(pkg.amount_paid ?? 0),
+    0,
+  );
 
-  if (error) return { error: error.message };
+  if (remaining > 0) {
+    const { error } = await supabase.from("payment_entries").insert({
+      package_id: packageId,
+      teacher_id: user.id,
+      amount: remaining,
+      paid_at: new Date().toISOString().slice(0, 10),
+      notes: "Quitação do pacote",
+    });
+    if (error) return { error: error.message };
+  }
 
-  revalidatePath("/faturamento");
-  revalidatePath("/pacotes");
-  revalidatePath(`/pacotes/${packageId}`);
+  const sync = await syncPackagePaymentTotals(supabase, packageId, user.id);
+  if (sync.error) return { error: sync.error };
+
+  revalidatePaymentPaths(packageId);
   return { success: true };
 }
 
