@@ -13,9 +13,10 @@ import { toLocalInputValue } from "@/lib/utils";
 type Props = {
   lessonId: string;
   status: string;
+  phone?: string | null;
 };
 
-export function LessonActions({ lessonId, status }: Props) {
+export function LessonActions({ lessonId, status, phone }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -120,7 +121,7 @@ export function LessonActions({ lessonId, status }: Props) {
         </p>
       )}
 
-      {message && <CopyMessage message={message} />}
+      {message && <CopyMessage message={message} phone={phone} />}
     </div>
   );
 }

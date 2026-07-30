@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { createLesson } from "@/lib/packages/actions";
 import { toLocalInputValue } from "@/lib/utils";
 
@@ -20,12 +20,20 @@ export function LessonForm({
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [packageId, setPackageId] = useState(defaultPackageId ?? "");
+  const [recurrence, setRecurrence] = useState<"once" | "weekly">("once");
   const defaultDate = (() => {
     const d = new Date();
     d.setMinutes(0, 0, 0);
     d.setHours(d.getHours() + 1);
     return toLocalInputValue(d);
   })();
+
+  const selected = useMemo(
+    () => packages.find((p) => p.id === packageId),
+    [packages, packageId],
+  );
+  const remaining = selected?.remainingSlots ?? 0;
 
   function onSubmit(formData: FormData) {
     setError(null);
@@ -47,6 +55,11 @@ export function LessonForm({
     );
   }
 
+  const submitLabel =
+    recurrence === "weekly" && remaining > 1
+      ? `Agendar ${remaining} aulas semanais`
+      : "Agendar aula";
+
   return (
     <form action={onSubmit} className="panel space-y-4 p-5">
       <label className="block text-sm font-medium text-[var(--ink-muted)]">
@@ -54,7 +67,8 @@ export function LessonForm({
         <select
           name="package_id"
           required
-          defaultValue={defaultPackageId ?? ""}
+          value={packageId}
+          onChange={(e) => setPackageId(e.target.value)}
           className="input mt-1"
         >
           <option value="">Selecione...</option>
@@ -76,6 +90,52 @@ export function LessonForm({
           className="input mt-1"
         />
       </label>
+
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium text-[var(--ink-muted)]">
+          Repetição
+        </legend>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3">
+          <input
+            type="radio"
+            name="recurrence"
+            value="once"
+            checked={recurrence === "once"}
+            onChange={() => setRecurrence("once")}
+            className="mt-1"
+          />
+          <span>
+            <span className="block font-medium text-[var(--ink)]">
+              Só esta aula
+            </span>
+            <span className="text-sm text-[var(--ink-muted)]">
+              Agenda apenas a data escolhida.
+            </span>
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3">
+          <input
+            type="radio"
+            name="recurrence"
+            value="weekly"
+            checked={recurrence === "weekly"}
+            onChange={() => setRecurrence("weekly")}
+            className="mt-1"
+            disabled={remaining <= 1}
+          />
+          <span>
+            <span className="block font-medium text-[var(--ink)]">
+              Repetir semanalmente
+            </span>
+            <span className="text-sm text-[var(--ink-muted)]">
+              {remaining > 1
+                ? `Preenche as ${remaining} vagas restantes do pacote, no mesmo dia da semana e horário.`
+                : "Disponível quando o pacote tiver mais de 1 vaga restante."}
+            </span>
+          </span>
+        </label>
+      </fieldset>
+
       <label className="block text-sm font-medium text-[var(--ink-muted)]">
         Observações
         <textarea name="notes" rows={2} className="input mt-1" />
@@ -86,7 +146,7 @@ export function LessonForm({
         </p>
       )}
       <button type="submit" disabled={pending} className="btn-primary w-full">
-        {pending ? "Agendando..." : "Agendar aula"}
+        {pending ? "Agendando..." : submitLabel}
       </button>
     </form>
   );

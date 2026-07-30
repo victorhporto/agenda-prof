@@ -135,14 +135,21 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
         )}
       </div>
 
-      <LessonActions lessonId={lesson.id} status={lesson.status} />
+      <LessonActions
+        lessonId={lesson.id}
+        status={lesson.status}
+        phone={pkg?.students?.phone}
+      />
 
       {showStored && storedMessage && lesson.status !== "scheduled" && (
         <div>
           <h2 className="mb-2 text-sm font-semibold text-[var(--ink-muted)]">
-            Mensagem para copiar
+            Mensagem para enviar
           </h2>
-          <CopyMessage message={storedMessage} />
+          <CopyMessage
+            message={storedMessage}
+            phone={pkg?.students?.phone}
+          />
         </div>
       )}
 
@@ -151,7 +158,10 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
           <h2 className="mb-2 text-sm font-semibold text-[var(--ink-muted)]">
             Mensagem de remarcação
           </h2>
-          <CopyMessage message={storedMessage} />
+          <CopyMessage
+            message={storedMessage}
+            phone={pkg?.students?.phone}
+          />
         </div>
       )}
     </div>

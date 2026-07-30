@@ -35,7 +35,7 @@ export function StudentForm() {
         <input name="name" required className="input mt-1" />
       </label>
       <label className="block text-sm font-medium text-[var(--ink-muted)]">
-        Telefone / WhatsApp
+        WhatsApp (DDD + número)
         <input name="phone" className="input mt-1" placeholder="11999999999" />
       </label>
       <label className="block text-sm font-medium text-[var(--ink-muted)]">

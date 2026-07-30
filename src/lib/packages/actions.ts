@@ -52,9 +52,13 @@ export async function createLesson(formData: FormData) {
   const packageId = String(formData.get("package_id") ?? "");
   const scheduledAt = String(formData.get("scheduled_at") ?? "");
   const notes = String(formData.get("notes") ?? "").trim() || null;
+  const recurrence = String(formData.get("recurrence") ?? "once");
 
   if (!packageId) return { error: "Pacote obrigatório" };
   if (!scheduledAt) return { error: "Data obrigatória" };
+  if (recurrence !== "once" && recurrence !== "weekly") {
+    return { error: "Opção de repetição inválida" };
+  }
 
   const { data: pkg, error: pkgError } = await supabase
     .from("lesson_packages")
@@ -75,30 +79,44 @@ export async function createLesson(formData: FormData) {
 
   const completed = (lessons ?? []).filter((l) => l.status === "completed").length;
   const scheduled = (lessons ?? []).filter((l) => l.status === "scheduled").length;
+  const remainingSlots = pkg.total_lessons - completed - scheduled;
 
-  if (completed + scheduled >= pkg.total_lessons) {
+  if (remainingSlots <= 0) {
     return {
       error: `Limite do pacote atingido (${pkg.total_lessons} aulas). Conclua ou remarque antes de agendar outra.`,
     };
   }
 
-  const { data: lesson, error } = await supabase
-    .from("lessons")
-    .insert({
+  const count = recurrence === "weekly" ? remainingSlots : 1;
+  const start = new Date(scheduledAt);
+  if (Number.isNaN(start.getTime())) {
+    return { error: "Data inválida" };
+  }
+
+  const rows = Array.from({ length: count }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(date.getDate() + index * 7);
+    return {
       teacher_id: user.id,
       package_id: packageId,
-      scheduled_at: new Date(scheduledAt).toISOString(),
-      status: "scheduled",
+      scheduled_at: date.toISOString(),
+      status: "scheduled" as const,
       notes,
-    })
-    .select("id")
-    .single();
+    };
+  });
 
-  if (error || !lesson) return { error: error?.message ?? "Erro ao agendar" };
+  const { data: created, error } = await supabase
+    .from("lessons")
+    .insert(rows)
+    .select("id");
+
+  if (error || !created?.length) {
+    return { error: error?.message ?? "Erro ao agendar" };
+  }
 
   revalidatePath("/agenda");
   revalidatePath(`/pacotes/${packageId}`);
-  redirect(`/aulas/${lesson.id}`);
+  redirect(`/pacotes/${packageId}`);
 }
 
 export async function closePackage(packageId: string) {

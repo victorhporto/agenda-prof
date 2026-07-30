@@ -54,8 +54,8 @@ export default async function NovaAulaPage({ searchParams }: Props) {
           Agendar aula
         </h1>
         <p className="mt-1 text-[var(--ink-muted)]">
-          A aula fica ligada a um pacote e só consome saldo quando for marcada
-          como dada.
+          Escolha a data ou repita semanalmente para preencher o pacote no mesmo
+          dia e horário.
         </p>
       </div>
       <LessonForm packages={options} defaultPackageId={packageId} />
