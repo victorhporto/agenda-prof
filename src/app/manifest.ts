@@ -6,9 +6,9 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "AgendaProf",
     description:
       "Agenda para professores autônomos: pacotes, aulas e remarcações.",
-    start_url: "/agenda",
+    start_url: "/inicio",
     display: "standalone",
-    background_color: "#D4EEF8",
+    background_color: "#f3f6f4",
     theme_color: "#0f6b4c",
     orientation: "portrait-primary",
     lang: "pt-BR",

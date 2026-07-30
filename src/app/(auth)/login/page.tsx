@@ -32,7 +32,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/agenda");
+    router.push("/inicio");
     router.refresh();
   }
 
@@ -69,7 +69,7 @@ export default function LoginPage() {
           />
         </label>
         {error && (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="form-error">
             {error}
           </p>
         )}

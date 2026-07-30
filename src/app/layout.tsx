@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   applicationName: "AgendaProf",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "AgendaProf",
   },
   formatDetection: {
@@ -38,7 +38,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f6b4c",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#0f6b4c" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f1613" },
+  ],
+  colorScheme: "light dark",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type IconName =
+  | "home"
   | "calendar"
   | "users"
   | "package"
@@ -15,6 +16,7 @@ type IconName =
   | "logout";
 
 const desktopLinks = [
+  { href: "/inicio", label: "Início" },
   { href: "/agenda", label: "Agenda" },
   { href: "/alunos", label: "Alunos" },
   { href: "/pacotes", label: "Pacotes" },
@@ -23,13 +25,20 @@ const desktopLinks = [
 ];
 
 const mobileLinks: { href: string; label: string; icon: IconName }[] = [
+  { href: "/inicio", label: "Início", icon: "home" },
   { href: "/agenda", label: "Agenda", icon: "calendar" },
   { href: "/alunos", label: "Alunos", icon: "users" },
-  { href: "/pacotes", label: "Pacotes", icon: "package" },
 ];
 
 function NavIcon({ name }: { name: IconName }) {
   const paths: Record<IconName, ReactNode> = {
+    home: (
+      <>
+        <path d="M3 10.5 12 3l9 7.5" />
+        <path d="M5 9.5V20h14V9.5" />
+        <path d="M10 20v-6h4v6" />
+      </>
+    ),
     calendar: (
       <>
         <rect x="3" y="5" width="18" height="16" rx="2" />
@@ -97,7 +106,9 @@ export function AppNav() {
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
   const moreActive =
-    pathname.startsWith("/faturamento") || pathname.startsWith("/mensagens");
+    pathname.startsWith("/pacotes") ||
+    pathname.startsWith("/faturamento") ||
+    pathname.startsWith("/mensagens");
 
   useEffect(() => {
     setMoreOpen(false);
@@ -115,7 +126,7 @@ export function AppNav() {
       <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-4 py-3">
           <Link
-            href="/agenda"
+            href="/inicio"
             className="font-display text-lg font-semibold tracking-tight text-[var(--ink)]"
           >
             AgendaProf
@@ -156,13 +167,27 @@ export function AppNav() {
           <button
             type="button"
             aria-label="Fechar menu"
-            className="absolute inset-0 bg-black/30"
+            className="absolute inset-0 bg-[var(--overlay)]"
             onClick={() => setMoreOpen(false)}
           />
           <div className="absolute inset-x-3 bottom-24 mx-auto max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-xl">
             <p className="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
               Mais opções
             </p>
+            <Link
+              href="/pacotes"
+              className="flex items-center gap-3 rounded-xl px-3 py-3 font-medium text-[var(--ink)] hover:bg-[var(--bg)]"
+            >
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
+                <NavIcon name="package" />
+              </span>
+              <span>
+                <span className="block">Pacotes</span>
+                <span className="block text-xs font-normal text-[var(--ink-muted)]">
+                  Aulas e saldo
+                </span>
+              </span>
+            </Link>
             <Link
               href="/faturamento"
               className="flex items-center gap-3 rounded-xl px-3 py-3 font-medium text-[var(--ink)] hover:bg-[var(--bg)]"

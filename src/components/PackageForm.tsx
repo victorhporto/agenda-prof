@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { createPackage } from "@/lib/packages/actions";
 
 type StudentOption = { id: string; name: string };
@@ -8,9 +8,37 @@ type StudentOption = { id: string; name: string };
 export function PackageForm({ students }: { students: StudentOption[] }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [price, setPrice] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("pending");
+  const [paymentDueDate, setPaymentDueDate] = useState("");
+
+  const warnings = useMemo(() => {
+    const list: string[] = [];
+    const hasPrice = price.trim() !== "" && Number(price) > 0;
+
+    if (!hasPrice) {
+      list.push(
+        "Sem valor do pacote, o faturamento não consegue calcular vendido/a receber.",
+      );
+    }
+    if (paymentStatus !== "paid" && !paymentDueDate) {
+      list.push(
+        "Sem data prevista, fica mais difícil acompanhar atrasos no financeiro.",
+      );
+    }
+    return list;
+  }, [price, paymentStatus, paymentDueDate]);
 
   function onSubmit(formData: FormData) {
     setError(null);
+
+    if (warnings.length > 0) {
+      const ok = confirm(
+        `Atenção:\n\n- ${warnings.join("\n- ")}\n\nDeseja criar o pacote mesmo assim?`,
+      );
+      if (!ok) return;
+    }
+
     startTransition(async () => {
       const result = await createPackage(formData);
       if (result?.error) setError(result.error);
@@ -51,29 +79,54 @@ export function PackageForm({ students }: { students: StudentOption[] }) {
         />
       </label>
       <label className="block text-sm font-medium text-[var(--ink-muted)]">
-        Valor (opcional)
+        Valor
         <input
           name="price"
           type="number"
           min={0}
           step="0.01"
           placeholder="0.00"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
           className="input mt-1"
         />
       </label>
       <label className="block text-sm font-medium text-[var(--ink-muted)]">
         Pagamento
-        <select name="payment_status" defaultValue="pending" className="input mt-1">
+        <select
+          name="payment_status"
+          value={paymentStatus}
+          onChange={(e) => setPaymentStatus(e.target.value)}
+          className="input mt-1"
+        >
           <option value="pending">Pendente</option>
           <option value="paid">Já pago</option>
         </select>
       </label>
       <label className="block text-sm font-medium text-[var(--ink-muted)]">
         Data prevista do pagamento
-        <input name="payment_due_date" type="date" className="input mt-1" />
+        <input
+          name="payment_due_date"
+          type="date"
+          value={paymentDueDate}
+          onChange={(e) => setPaymentDueDate(e.target.value)}
+          className="input mt-1"
+        />
       </label>
+
+      {warnings.length > 0 && (
+        <div className="rounded-xl border border-[var(--warning)]/30 bg-[var(--warning-soft)] px-3 py-3 text-sm text-[var(--warning)]">
+          <p className="font-semibold">Recomendado revisar:</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            {warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="form-error">
           {error}
         </p>
       )}

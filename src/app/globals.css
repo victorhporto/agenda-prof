@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
   --bg: #f3f6f4;
   --surface: #ffffff;
   --ink: #14201b;
@@ -15,6 +16,15 @@
   --warning-soft: #fff6db;
   --success: #0f6b4c;
   --success-soft: #d9efe6;
+  --badge-info-bg: #e8f0ff;
+  --badge-info-fg: #1d4f91;
+  --badge-neutral-bg: #eef0f2;
+  --badge-neutral-fg: #4b5563;
+  --btn-secondary-hover-border: #b8c9c0;
+  --btn-danger-hover: #f8d7d4;
+  --focus-ring: rgba(15, 107, 76, 0.15);
+  --panel-shadow: 0 1px 0 rgba(20, 32, 27, 0.03);
+  --overlay: rgba(0, 0, 0, 0.35);
   --pattern: radial-gradient(
       circle at 12% 18%,
       rgba(15, 107, 76, 0.08),
@@ -26,6 +36,46 @@
       transparent 40%
     ),
     linear-gradient(180deg, #f7faf8 0%, #eef3f0 100%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0f1613;
+    --surface: #1a2420;
+    --ink: #e8efeb;
+    --ink-muted: #9aaba3;
+    --border: #2d3b34;
+    --accent: #3d9b74;
+    --accent-hover: #4aad85;
+    --accent-soft: #1a3329;
+    --danger: #f97066;
+    --danger-soft: #3a1c1a;
+    --warning: #e3b341;
+    --warning-soft: #3a2e14;
+    --success: #3d9b74;
+    --success-soft: #1a3329;
+    --badge-info-bg: #1a2a3d;
+    --badge-info-fg: #8bb4e8;
+    --badge-neutral-bg: #262f2b;
+    --badge-neutral-fg: #a8b5ae;
+    --btn-secondary-hover-border: #3d4f46;
+    --btn-danger-hover: #4a2420;
+    --focus-ring: rgba(61, 155, 116, 0.28);
+    --panel-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+    --overlay: rgba(0, 0, 0, 0.55);
+    --pattern: radial-gradient(
+        circle at 12% 18%,
+        rgba(61, 155, 116, 0.12),
+        transparent 34%
+      ),
+      radial-gradient(
+        circle at 88% 0%,
+        rgba(232, 239, 235, 0.04),
+        transparent 40%
+      ),
+      linear-gradient(180deg, #121a16 0%, #0c1210 100%);
+  }
 }
 
 @theme inline {
@@ -65,7 +115,7 @@ body {
 
 .input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(15, 107, 76, 0.15);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .btn-primary {
@@ -110,7 +160,7 @@ body {
 
 .btn-secondary:hover:not(:disabled) {
   background: var(--bg);
-  border-color: #b8c9c0;
+  border-color: var(--btn-secondary-hover-border);
 }
 
 .btn-secondary:disabled {
@@ -132,7 +182,7 @@ body {
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #f8d7d4;
+  background: var(--btn-danger-hover);
 }
 
 .btn-danger:disabled {
@@ -144,7 +194,7 @@ body {
   border-radius: 1rem;
   border: 1px solid var(--border);
   background: var(--surface);
-  box-shadow: 0 1px 0 rgba(20, 32, 27, 0.03);
+  box-shadow: var(--panel-shadow);
 }
 
 .badge {
@@ -157,8 +207,8 @@ body {
 }
 
 .badge-scheduled {
-  background: #e8f0ff;
-  color: #1d4f91;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
 }
 
 .badge-completed {
@@ -173,6 +223,14 @@ body {
 
 .badge-cancelled,
 .badge-rescheduled {
-  background: #eef0f2;
-  color: #4b5563;
+  background: var(--badge-neutral-bg);
+  color: var(--badge-neutral-fg);
+}
+
+.form-error {
+  border-radius: 0.5rem;
+  background: var(--danger-soft);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--danger);
 }
