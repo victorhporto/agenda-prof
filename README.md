@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AgendaProf
 
-## Getting Started
+Agenda para professores autônomos: pacotes de aulas, check-in pós-aula e remarcações com mensagens prontas para copiar.
 
-First, run the development server:
+**Produção:** https://agendaprof-flame.vercel.app
+
+## Stack
+
+- Next.js (App Router) + TypeScript + Tailwind
+- Supabase (Auth + Postgres + RLS) — projeto `agenda_prof` (`fyvlijmpzmjlhlunklyu`, região `sa-east-1`)
+- Deploy: Vercel
+
+## Setup local
+
+1. Copie `.env.example` para `.env.local` e preencha as chaves do Supabase.
+2. Instale e rode:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Abra [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Auth no Supabase (importante)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+No dashboard do projeto Supabase → Authentication → URL Configuration:
 
-## Learn More
+- Site URL: `https://agendaprof-flame.vercel.app`
+- Redirect URLs: `https://agendaprof-flame.vercel.app/**` e `http://localhost:3000/**`
 
-To learn more about Next.js, take a look at the following resources:
+Para testar sem e-mail: Authentication → Providers → Email → desative **Confirm email**.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Fluxo principal
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Cadastre um aluno
+2. Crie um pacote (ex.: 4 aulas)
+3. Agende as aulas
+4. No dia: **OK — aula dada** ou **Não foi dada** / **Remarcar**
+5. Copie a mensagem gerada para o WhatsApp
 
-## Deploy on Vercel
+## Regra de saldo
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Só aulas com status `completed` consomem o pacote. Falta e remarcação não consomem até a aula ser dada.
