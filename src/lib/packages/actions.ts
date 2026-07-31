@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { saoPauloInputToIso, todayYmdSaoPaulo } from "@/lib/timezone";
 
 export async function createPackage(formData: FormData) {
   const supabase = await createClient();
@@ -55,7 +56,7 @@ export async function createPackage(formData: FormData) {
       package_id: data.id,
       teacher_id: user.id,
       amount: initialPaid,
-      paid_at: new Date().toISOString().slice(0, 10),
+      paid_at: todayYmdSaoPaulo(),
       notes: "Pagamento na criação do pacote",
     });
   }
@@ -112,14 +113,15 @@ export async function createLesson(formData: FormData) {
 
   const count = recurrence === "once" ? 1 : remainingSlots;
   const stepDays = recurrence === "biweekly" ? 14 : 7;
-  const start = new Date(scheduledAt);
-  if (Number.isNaN(start.getTime())) {
+  const startIso = saoPauloInputToIso(scheduledAt);
+  if (!startIso) {
     return { error: "Data inválida" };
   }
+  const start = new Date(startIso);
 
   const rows = Array.from({ length: count }, (_, index) => {
     const date = new Date(start);
-    date.setDate(date.getDate() + index * stepDays);
+    date.setUTCDate(date.getUTCDate() + index * stepDays);
     return {
       teacher_id: user.id,
       package_id: packageId,
@@ -139,6 +141,8 @@ export async function createLesson(formData: FormData) {
   }
 
   revalidatePath("/agenda");
+  revalidatePath("/inicio");
+  revalidatePath("/pacotes");
   revalidatePath(`/pacotes/${packageId}`);
   redirect(`/pacotes/${packageId}`);
 }
@@ -159,6 +163,82 @@ export async function closePackage(packageId: string) {
   if (error) return { error: error.message };
 
   revalidatePath("/pacotes");
+  revalidatePath("/inicio");
   revalidatePath(`/pacotes/${packageId}`);
   return { success: true };
+}
+
+export async function updatePackage(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  const packageId = String(formData.get("package_id") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const totalLessons = Number(formData.get("total_lessons"));
+  const priceRaw = String(formData.get("price") ?? "").trim();
+  const price = priceRaw === "" ? null : Number(priceRaw);
+  const paymentDueDate =
+    String(formData.get("payment_due_date") ?? "").trim() || null;
+
+  if (!packageId) return { error: "Pacote inválido" };
+  if (!title) return { error: "Título é obrigatório" };
+  if (!Number.isFinite(totalLessons) || totalLessons < 1) {
+    return { error: "Total de aulas deve ser pelo menos 1" };
+  }
+  if (price != null && (!Number.isFinite(price) || price < 0)) {
+    return { error: "Valor inválido" };
+  }
+
+  const { data: pkg, error: pkgError } = await supabase
+    .from("lesson_packages")
+    .select("id, total_lessons")
+    .eq("id", packageId)
+    .eq("teacher_id", user.id)
+    .single();
+
+  if (pkgError || !pkg) return { error: "Pacote não encontrado" };
+
+  const { data: lessons } = await supabase
+    .from("lessons")
+    .select("status")
+    .eq("package_id", packageId);
+
+  const completed = (lessons ?? []).filter((l) => l.status === "completed")
+    .length;
+  const scheduled = (lessons ?? []).filter((l) => l.status === "scheduled")
+    .length;
+
+  if (totalLessons < completed) {
+    return {
+      error: `Total não pode ser menor que as ${completed} aulas já dadas`,
+    };
+  }
+
+  if (totalLessons < completed + scheduled) {
+    return {
+      error: `Total não pode ser menor que dadas + agendadas (${completed + scheduled})`,
+    };
+  }
+
+  const { error } = await supabase
+    .from("lesson_packages")
+    .update({
+      title,
+      total_lessons: totalLessons,
+      price,
+      payment_due_date: paymentDueDate,
+    })
+    .eq("id", packageId)
+    .eq("teacher_id", user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/pacotes");
+  revalidatePath("/faturamento");
+  revalidatePath("/inicio");
+  revalidatePath(`/pacotes/${packageId}`);
+  return { success: true as const };
 }

@@ -1,5 +1,3 @@
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { getPackageProgress } from "@/lib/package-progress";
@@ -9,8 +7,10 @@ import {
   packageBalance,
   statusLabel,
 } from "@/lib/utils";
-
-const TIMEZONE = "America/Sao_Paulo";
+import {
+  formatInSaoPaulo,
+  saoPauloDayBounds,
+} from "@/lib/timezone";
 
 export type DailyDigestLesson = {
   id: string;
@@ -50,22 +50,7 @@ export type DailyDigest = {
   hasContent: boolean;
 };
 
-/** Início/fim do dia civil em America/Sao_Paulo (UTC−3 o ano todo). */
-export function saoPauloDayBounds(now = new Date()) {
-  const dayYmd = new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-
-  const start = new Date(`${dayYmd}T00:00:00-03:00`);
-  const end = new Date(`${dayYmd}T23:59:59.999-03:00`);
-
-  const dayLabel = format(start, "EEEE, dd 'de' MMMM", { locale: ptBR });
-
-  return { start, end, dayYmd, dayLabel };
-}
+export { saoPauloDayBounds };
 
 function isOverdueOnDay(
   paymentStatus: string,
@@ -135,9 +120,7 @@ export async function buildDailyDigest(
     return {
       id: lesson.id,
       scheduledAt: lesson.scheduled_at,
-      timeLabel: format(parseISO(lesson.scheduled_at), "HH:mm", {
-        locale: ptBR,
-      }),
+      timeLabel: formatInSaoPaulo(lesson.scheduled_at, "HH:mm"),
       status: lesson.status,
       statusLabel: statusLabel(lesson.status),
       studentName: pkg?.students?.name ?? "Aluno",

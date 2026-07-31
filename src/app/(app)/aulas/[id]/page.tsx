@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LessonActions } from "@/components/LessonActions";
+import { EditLessonPanel } from "@/components/EditLessonPanel";
 import { CopyMessage } from "@/components/CopyMessage";
 import {
   completedLessonMessage,
@@ -177,6 +178,13 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
           </p>
         )}
       </div>
+
+      <EditLessonPanel
+        lessonId={lesson.id}
+        status={lesson.status}
+        scheduledAt={lesson.scheduled_at}
+        notes={lesson.notes}
+      />
 
       <LessonActions
         lessonId={lesson.id}

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getPackageProgress } from "@/lib/package-progress";
 import { formatLessonDate, formatMoney, statusLabel } from "@/lib/utils";
 import { ClosePackageButton } from "@/components/ClosePackageButton";
+import { EditPackagePanel } from "@/components/EditPackagePanel";
 import { PaymentPanel } from "@/components/PaymentPanel";
 
 type Props = { params: Promise<{ id: string }> };
@@ -74,6 +75,16 @@ export default async function PacoteDetailPage({ params }: Props) {
           </div>
         </div>
       </div>
+
+      <EditPackagePanel
+        packageId={pkg.id}
+        title={pkg.title}
+        totalLessons={pkg.total_lessons}
+        price={pkg.price}
+        paymentDueDate={pkg.payment_due_date}
+        completedCount={progress.completed}
+        scheduledCount={progress.scheduled}
+      />
 
       <div className="panel p-5">
         <div className="mb-2 flex justify-between text-sm">

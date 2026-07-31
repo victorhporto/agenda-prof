@@ -1,6 +1,5 @@
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { formatDateOnly, formatMoney, paymentStatusLabel } from "@/lib/utils";
+import { formatInSaoPaulo } from "@/lib/timezone";
 
 export type MessageTemplates = {
   msg_completed: string | null;
@@ -33,8 +32,7 @@ export type SignatureOptions = {
 };
 
 export function formatLessonDate(date: Date | string) {
-  const d = typeof date === "string" ? new Date(date) : date;
-  return format(d, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+  return formatInSaoPaulo(date, "dd/MM/yyyy 'às' HH:mm");
 }
 
 function applyTemplate(

@@ -152,10 +152,17 @@ export function AgendaSkeleton() {
         <Skeleton className="h-10 w-10 rounded-xl" />
       </div>
       <div className="flex gap-2">
-        <Skeleton className="h-9 w-16 rounded-lg" />
+        <Skeleton className="h-9 w-14 rounded-lg" />
         <Skeleton className="h-9 w-20 rounded-lg" />
+        <Skeleton className="h-9 w-14 rounded-lg" />
       </div>
-      <ListCardsSkeleton count={5} rows={2} />
+      <div className="panel p-3">
+        <div className="grid grid-cols-7 gap-1">
+          {Array.from({ length: 35 }).map((_, index) => (
+            <Skeleton key={index} className="min-h-[4.5rem] rounded-xl" />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

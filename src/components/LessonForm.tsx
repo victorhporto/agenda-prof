@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { createLesson } from "@/lib/packages/actions";
-import { toLocalInputValue } from "@/lib/utils";
+import { toSaoPauloInputValue } from "@/lib/timezone";
 
 type PackageOption = {
   id: string;
@@ -28,7 +28,7 @@ export function LessonForm({
     const d = new Date();
     d.setMinutes(0, 0, 0);
     d.setHours(d.getHours() + 1);
-    return toLocalInputValue(d);
+    return toSaoPauloInputValue(d);
   })();
 
   const selected = useMemo(

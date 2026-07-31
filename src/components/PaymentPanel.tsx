@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   addPaymentEntry,
   deletePaymentEntry,
@@ -10,9 +11,11 @@ import {
 import {
   formatDateOnly,
   formatMoney,
+  formatShortDate,
   isPaymentOverdue,
   paymentStatusLabel,
 } from "@/lib/utils";
+import { todayYmdSaoPaulo } from "@/lib/timezone";
 import { PaymentReminderButton } from "@/components/PaymentReminderButton";
 
 type PaymentEntry = {
@@ -44,18 +47,23 @@ export function PaymentPanel({
   paymentDueDate,
   entries,
 }: Props) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const overdue = isPaymentOverdue(paymentStatus, paymentDueDate);
   const dueLabel = formatDateOnly(paymentDueDate);
   const remaining = Math.max(Number(price ?? 0) - Number(amountPaid ?? 0), 0);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayYmdSaoPaulo();
 
   function onSaveMeta(formData: FormData) {
     setError(null);
     startTransition(async () => {
       const result = await updatePackagePaymentMeta(formData);
-      if (result.error) setError(result.error);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
     });
   }
 
@@ -63,7 +71,11 @@ export function PaymentPanel({
     setError(null);
     startTransition(async () => {
       const result = await addPaymentEntry(formData);
-      if (result.error) setError(result.error);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
     });
   }
 
@@ -71,7 +83,11 @@ export function PaymentPanel({
     setError(null);
     startTransition(async () => {
       const result = await markPackagePaid(packageId);
-      if (result.error) setError(result.error);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
     });
   }
 
@@ -80,7 +96,11 @@ export function PaymentPanel({
     setError(null);
     startTransition(async () => {
       const result = await deletePaymentEntry(entryId, packageId);
-      if (result.error) setError(result.error);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
     });
   }
 
@@ -122,7 +142,10 @@ export function PaymentPanel({
         )}
         {paidAt && paymentStatus === "paid" && (
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
-            Quitado em {new Date(paidAt).toLocaleDateString("pt-BR")}
+            Quitado em{" "}
+            {paidAt.includes("T")
+              ? formatShortDate(paidAt)
+              : formatDateOnly(paidAt)}
           </p>
         )}
       </div>

@@ -1,9 +1,11 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { closePackage } from "@/lib/packages/actions";
 
 export function ClosePackageButton({ packageId }: { packageId: string }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   return (
@@ -15,10 +17,11 @@ export function ClosePackageButton({ packageId }: { packageId: string }) {
         if (!confirm("Encerrar este pacote?")) return;
         startTransition(async () => {
           await closePackage(packageId);
+          router.refresh();
         });
       }}
     >
-      Encerrar pacote
+      {pending ? "Encerrando..." : "Encerrar pacote"}
     </button>
   );
 }

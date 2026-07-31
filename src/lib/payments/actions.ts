@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { paymentReminderMessage } from "@/lib/messages/templates";
 import { packageBalance } from "@/lib/utils";
+import { todayYmdSaoPaulo } from "@/lib/timezone";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -65,6 +66,7 @@ async function syncPackagePaymentTotals(
 function revalidatePaymentPaths(packageId: string) {
   revalidatePath("/faturamento");
   revalidatePath("/pacotes");
+  revalidatePath("/inicio");
   revalidatePath(`/pacotes/${packageId}`);
 }
 
@@ -107,8 +109,7 @@ export async function addPaymentEntry(formData: FormData) {
   const packageId = String(formData.get("package_id") ?? "");
   const amount = Number(String(formData.get("amount") ?? "").trim());
   const paidAt =
-    String(formData.get("paid_at") ?? "").trim() ||
-    new Date().toISOString().slice(0, 10);
+    String(formData.get("paid_at") ?? "").trim() || todayYmdSaoPaulo();
   const method = String(formData.get("method") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
@@ -192,7 +193,7 @@ export async function markPackagePaid(packageId: string) {
       package_id: packageId,
       teacher_id: user.id,
       amount: remaining,
-      paid_at: new Date().toISOString().slice(0, 10),
+      paid_at: todayYmdSaoPaulo(),
       notes: "Quitação do pacote",
     });
     if (error) return { error: error.message };

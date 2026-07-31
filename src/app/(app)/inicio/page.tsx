@@ -1,12 +1,7 @@
 import Link from "next/link";
-import {
-  endOfDay,
-  format,
-  startOfDay,
-} from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { createClient } from "@/lib/supabase/server";
 import { getPackageProgress } from "@/lib/package-progress";
+import { saoPauloDayBounds } from "@/lib/timezone";
 import {
   formatDateOnly,
   formatLessonDate,
@@ -19,10 +14,8 @@ import {
 
 export default async function InicioPage() {
   const supabase = await createClient();
-  const now = new Date();
-  const dayStart = startOfDay(now);
-  const dayEnd = endOfDay(now);
-  const todayLabel = format(now, "EEEE, dd 'de' MMMM", { locale: ptBR });
+  const { start: dayStart, end: dayEnd, dayLabel: todayLabel } =
+    saoPauloDayBounds();
 
   const [{ data: todayLessons }, { data: packages }] = await Promise.all([
     supabase

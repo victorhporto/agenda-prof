@@ -8,7 +8,7 @@ import {
   rescheduleLesson,
 } from "@/lib/lessons/actions";
 import { CopyMessage } from "@/components/CopyMessage";
-import { toLocalInputValue } from "@/lib/utils";
+import { toSaoPauloInputValue } from "@/lib/timezone";
 
 type Props = {
   lessonId: string;
@@ -27,7 +27,7 @@ export function LessonActions({ lessonId, status, phone }: Props) {
     const d = new Date();
     d.setDate(d.getDate() + 1);
     d.setHours(10, 0, 0, 0);
-    return toLocalInputValue(d);
+    return toSaoPauloInputValue(d);
   });
 
   function run(

@@ -1,9 +1,11 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { markPackagePaid } from "@/lib/payments/actions";
 
 export function MarkPaidButton({ packageId }: { packageId: string }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   return (
@@ -14,6 +16,7 @@ export function MarkPaidButton({ packageId }: { packageId: string }) {
       onClick={() => {
         startTransition(async () => {
           await markPackagePaid(packageId);
+          router.refresh();
         });
       }}
     >

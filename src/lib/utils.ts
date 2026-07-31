@@ -1,12 +1,16 @@
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { parseISO } from "date-fns";
+import {
+  formatDateOnlyBr,
+  formatInSaoPaulo,
+  todayYmdSaoPaulo,
+} from "@/lib/timezone";
 
 export function formatLessonDate(iso: string) {
-  return format(parseISO(iso), "EEE, dd/MM · HH:mm", { locale: ptBR });
+  return formatInSaoPaulo(iso, "EEE, dd/MM · HH:mm");
 }
 
 export function formatShortDate(iso: string) {
-  return format(parseISO(iso), "dd/MM/yyyy HH:mm", { locale: ptBR });
+  return formatInSaoPaulo(iso, "dd/MM/yyyy HH:mm");
 }
 
 export function statusLabel(status: string) {
@@ -20,6 +24,7 @@ export function statusLabel(status: string) {
   return map[status] ?? status;
 }
 
+/** @deprecated Prefira toSaoPauloInputValue — mantido para compat. */
 export function toLocalInputValue(date: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -57,10 +62,7 @@ export function packageBalance(pkg: {
 }
 
 export function formatDateOnly(value: string | null | undefined) {
-  if (!value) return null;
-  const [year, month, day] = value.slice(0, 10).split("-");
-  if (!year || !month || !day) return null;
-  return `${day}/${month}/${year}`;
+  return formatDateOnlyBr(value);
 }
 
 export function isPaymentOverdue(
@@ -68,8 +70,11 @@ export function isPaymentOverdue(
   paymentDueDate: string | null | undefined,
 ) {
   if (paymentStatus === "paid" || !paymentDueDate) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(`${paymentDueDate.slice(0, 10)}T00:00:00`);
-  return due < today;
+  const today = todayYmdSaoPaulo();
+  return paymentDueDate.slice(0, 10) < today;
+}
+
+/** Evita new Date('YYYY-MM-DD') virar dia anterior em UTC. */
+export function parseDateOnlyLocal(value: string): Date {
+  return parseISO(`${value.slice(0, 10)}T12:00:00`);
 }
