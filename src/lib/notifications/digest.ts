@@ -205,56 +205,163 @@ export function renderDigestEmailHtml(
   const greeting = digest.teacherName
     ? `Olá, ${escapeHtml(digest.teacherName)}`
     : "Olá";
+  const totalOverdue = digest.overduePayments.reduce(
+    (total, payment) => total + payment.dueAmount,
+    0,
+  );
 
   const lessonRows = digest.lessons.length
     ? digest.lessons
         .map(
           (l) =>
-            `<li><strong>${escapeHtml(l.timeLabel)}</strong> — ${escapeHtml(l.studentName)} (${escapeHtml(l.packageTitle)}) · ${escapeHtml(l.statusLabel)}</li>`,
+            `<tr>
+              <td style="padding: 14px 0; border-bottom: 1px solid #e5ece8;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td width="62" valign="top">
+                      <span style="display: inline-block; background: #d9efe6; color: #0f6b4c; border-radius: 8px; padding: 5px 8px; font-size: 13px; font-weight: 700;">${escapeHtml(l.timeLabel)}</span>
+                    </td>
+                    <td style="padding-left: 10px;">
+                      <div style="font-size: 15px; font-weight: 700; color: #14201b;">${escapeHtml(l.studentName)}</div>
+                      <div style="margin-top: 2px; font-size: 13px; color: #5a6b63;">${escapeHtml(l.packageTitle)} · ${escapeHtml(l.statusLabel)}</div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>`,
         )
         .join("")
-    : "<li>Nenhuma aula hoje.</li>";
+    : `<tr><td style="padding: 14px 0; color: #5a6b63; font-size: 14px;">Nenhuma aula hoje. Aproveite para organizar a semana.</td></tr>`;
 
   const overdueRows = digest.overduePayments.length
     ? digest.overduePayments
         .map(
           (p) =>
-            `<li><strong>${escapeHtml(p.studentName)}</strong> — ${escapeHtml(p.title)}${p.dueLabel ? ` · previsto ${escapeHtml(p.dueLabel)}` : ""} · falta ${escapeHtml(formatMoney(p.dueAmount))}</li>`,
+            `<tr>
+              <td style="padding: 14px 0; border-bottom: 1px solid #f3e1df;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td>
+                      <div style="font-size: 15px; font-weight: 700; color: #14201b;">${escapeHtml(p.studentName)}</div>
+                      <div style="margin-top: 2px; font-size: 13px; color: #5a6b63;">${escapeHtml(p.title)}${p.dueLabel ? ` · previsto ${escapeHtml(p.dueLabel)}` : ""}</div>
+                    </td>
+                    <td align="right" valign="top" style="white-space: nowrap; padding-left: 12px; color: #b42318; font-size: 14px; font-weight: 700;">${escapeHtml(formatMoney(p.dueAmount))}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>`,
         )
         .join("")
-    : "<li>Nenhum pagamento atrasado.</li>";
+    : `<tr><td style="padding: 14px 0; color: #5a6b63; font-size: 14px;">Nenhum pagamento atrasado. Tudo em dia!</td></tr>`;
 
   const endingRows = digest.endingPackages.length
     ? digest.endingPackages
         .map(
           (p) =>
-            `<li><strong>${escapeHtml(p.studentName)}</strong> — ${escapeHtml(p.title)} · resta ${p.remaining} aula${p.remaining === 1 ? "" : "s"}</li>`,
+            `<tr>
+              <td style="padding: 14px 0; border-bottom: 1px solid #eee5ce;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td>
+                      <div style="font-size: 15px; font-weight: 700; color: #14201b;">${escapeHtml(p.studentName)}</div>
+                      <div style="margin-top: 2px; font-size: 13px; color: #5a6b63;">${escapeHtml(p.title)} · ${p.completed}/${p.total} aulas dadas</div>
+                    </td>
+                    <td align="right" valign="top" style="white-space: nowrap; padding-left: 12px;">
+                      <span style="display: inline-block; background: #fff6db; color: #9a6700; border-radius: 999px; padding: 5px 9px; font-size: 12px; font-weight: 700;">Resta ${p.remaining}</span>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>`,
         )
         .join("")
-    : "<li>Nenhum pacote acabando.</li>";
+    : `<tr><td style="padding: 14px 0; color: #5a6b63; font-size: 14px;">Nenhum pacote perto do fim.</td></tr>`;
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
-<body style="font-family: system-ui, sans-serif; color: #14201b; line-height: 1.5; max-width: 560px; margin: 0 auto; padding: 24px;">
-  <p style="margin: 0 0 4px; font-size: 12px; color: #5a6b63; text-transform: capitalize;">${escapeHtml(digest.dayLabel)}</p>
-  <h1 style="margin: 0 0 16px; font-size: 22px;">Resumo do dia — AgendaProf</h1>
-  <p>${greeting}, aqui está o que importa hoje:</p>
-
-  <h2 style="font-size: 16px; margin: 24px 0 8px;">Aulas hoje (${digest.lessons.length})</h2>
-  <ul style="padding-left: 18px; margin: 0;">${lessonRows}</ul>
-
-  <h2 style="font-size: 16px; margin: 24px 0 8px;">Pagamentos atrasados (${digest.overduePayments.length})</h2>
-  <ul style="padding-left: 18px; margin: 0;">${overdueRows}</ul>
-
-  <h2 style="font-size: 16px; margin: 24px 0 8px;">Pacotes acabando (${digest.endingPackages.length})</h2>
-  <ul style="padding-left: 18px; margin: 0;">${endingRows}</ul>
-
-  <p style="margin: 28px 0 0;">
-    <a href="${escapeHtml(appUrl)}/inicio" style="display: inline-block; background: #0f6b4c; color: #fff; text-decoration: none; padding: 10px 16px; border-radius: 8px; font-weight: 600;">Abrir AgendaProf</a>
-  </p>
-  <p style="margin: 16px 0 0; font-size: 12px; color: #5a6b63;">
-    Você pode desativar este e-mail em Mensagens → Notificações.
-  </p>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resumo do dia — AgendaProf</title>
+</head>
+<body style="margin: 0; padding: 0; background: #eef3f0; font-family: Arial, Helvetica, sans-serif; color: #14201b; line-height: 1.5;">
+  <div style="display: none; max-height: 0; overflow: hidden; opacity: 0;">${digest.lessons.length} aulas hoje, ${digest.overduePayments.length} pagamentos atrasados e ${digest.endingPackages.length} pacotes acabando.</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: #eef3f0;">
+    <tr>
+      <td align="center" style="padding: 28px 12px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 620px; background: #ffffff; border-radius: 18px; overflow: hidden; box-shadow: 0 4px 20px rgba(20,32,27,.08);">
+          <tr>
+            <td style="background: #0f6b4c; padding: 28px 30px; color: #ffffff;">
+              <div style="font-family: Georgia, serif; font-size: 22px; font-weight: 700;">AgendaProf</div>
+              <div style="margin-top: 22px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #bde2d2;">Resumo do dia</div>
+              <h1 style="margin: 4px 0 0; font-size: 26px; line-height: 1.25; text-transform: capitalize;">${escapeHtml(digest.dayLabel)}</h1>
+              <p style="margin: 10px 0 0; color: #e2f2eb; font-size: 15px;">${greeting}, aqui está o que merece sua atenção hoje.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 30px 8px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td width="33.33%" valign="top" style="padding-right: 5px;">
+                    <div style="background: #edf7f2; border-radius: 12px; padding: 14px 10px; text-align: center;">
+                      <div style="font-size: 24px; font-weight: 800; color: #0f6b4c;">${digest.lessons.length}</div>
+                      <div style="font-size: 11px; color: #5a6b63;">Aulas hoje</div>
+                    </div>
+                  </td>
+                  <td width="33.33%" valign="top" style="padding: 0 5px;">
+                    <div style="background: #fdf0ef; border-radius: 12px; padding: 14px 10px; text-align: center;">
+                      <div style="font-size: 24px; font-weight: 800; color: #b42318;">${digest.overduePayments.length}</div>
+                      <div style="font-size: 11px; color: #5a6b63;">Em atraso</div>
+                    </div>
+                  </td>
+                  <td width="33.33%" valign="top" style="padding-left: 5px;">
+                    <div style="background: #fff8e7; border-radius: 12px; padding: 14px 10px; text-align: center;">
+                      <div style="font-size: 24px; font-weight: 800; color: #9a6700;">${digest.endingPackages.length}</div>
+                      <div style="font-size: 11px; color: #5a6b63;">Acabando</div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 18px 30px 0;">
+              <h2 style="margin: 0; font-size: 17px; color: #14201b;">📅 Agenda de hoje</h2>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">${lessonRows}</table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 30px 0;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td><h2 style="margin: 0; font-size: 17px; color: #14201b;">💳 Pagamentos atrasados</h2></td>
+                  ${digest.overduePayments.length ? `<td align="right" style="color: #b42318; font-size: 13px; font-weight: 700;">Total: ${escapeHtml(formatMoney(totalOverdue))}</td>` : ""}
+                </tr>
+              </table>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">${overdueRows}</table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 30px 0;">
+              <h2 style="margin: 0; font-size: 17px; color: #14201b;">📦 Pacotes acabando</h2>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">${endingRows}</table>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding: 30px;">
+              <a href="${escapeHtml(appUrl)}/inicio" style="display: inline-block; background: #0f6b4c; color: #ffffff; text-decoration: none; padding: 13px 22px; border-radius: 10px; font-size: 15px; font-weight: 700;">Abrir meu AgendaProf →</a>
+              <p style="margin: 18px 0 0; font-size: 12px; color: #7a8982;">Este resumo é enviado diariamente às 8h, quando há algo relevante.</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="background: #f7faf8; border-top: 1px solid #e5ece8; padding: 18px 30px; font-size: 11px; color: #7a8982;">
+              Você pode desativar este e-mail em <strong>Mensagens → Notificações</strong>.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 }
