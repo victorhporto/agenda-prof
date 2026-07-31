@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LessonActions } from "@/components/LessonActions";
 import { EditLessonPanel } from "@/components/EditLessonPanel";
+import { RevertLessonButton } from "@/components/RevertLessonButton";
 import { CopyMessage } from "@/components/CopyMessage";
 import {
   completedLessonMessage,
@@ -191,6 +192,8 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
         status={lesson.status}
         phone={pkg?.students?.phone}
       />
+
+      <RevertLessonButton lessonId={lesson.id} status={lesson.status} />
 
       {showStored && storedMessage && lesson.status !== "scheduled" && (
         <CopyMessage

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { syncPackagePaymentTotals } from "@/lib/payments/actions";
 import { saoPauloInputToIso, todayYmdSaoPaulo } from "@/lib/timezone";
+import { findScheduleConflicts } from "@/lib/lessons/conflicts";
 
 export async function createPackage(formData: FormData) {
   const supabase = await createClient();
@@ -28,6 +29,9 @@ export async function createPackage(formData: FormData) {
   if (!title) return { error: "Título é obrigatório" };
   if (!Number.isFinite(totalLessons) || totalLessons < 1) {
     return { error: "Total de aulas deve ser pelo menos 1" };
+  }
+  if (price != null && (!Number.isFinite(price) || price < 0)) {
+    return { error: "Valor inválido" };
   }
   if (!["pending", "paid"].includes(paymentStatus)) {
     return { error: "Status de pagamento inválido" };
@@ -132,6 +136,15 @@ export async function createLesson(formData: FormData) {
     };
   });
 
+  const conflict = await findScheduleConflicts(
+    supabase,
+    user.id,
+    rows.map((r) => r.scheduled_at),
+  );
+  if (conflict) {
+    return { error: conflict.message };
+  }
+
   const { data: created, error } = await supabase
     .from("lessons")
     .insert(rows)
@@ -196,8 +209,6 @@ export async function updatePackage(formData: FormData) {
   const totalLessons = Number(formData.get("total_lessons"));
   const priceRaw = String(formData.get("price") ?? "").trim();
   const price = priceRaw === "" ? null : Number(priceRaw);
-  const paymentDueDate =
-    String(formData.get("payment_due_date") ?? "").trim() || null;
 
   if (!packageId) return { error: "Pacote inválido" };
   if (!title) return { error: "Título é obrigatório" };
@@ -245,7 +256,6 @@ export async function updatePackage(formData: FormData) {
       title,
       total_lessons: totalLessons,
       price,
-      payment_due_date: paymentDueDate,
     })
     .eq("id", packageId)
     .eq("teacher_id", user.id);
@@ -258,6 +268,54 @@ export async function updatePackage(formData: FormData) {
   revalidatePath("/pacotes");
   revalidatePath("/faturamento");
   revalidatePath("/inicio");
+  revalidatePath(`/pacotes/${packageId}`);
+  return { success: true as const };
+}
+
+export async function reopenPackage(packageId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  const { data: pkg, error: pkgError } = await supabase
+    .from("lesson_packages")
+    .select("id, status, total_lessons")
+    .eq("id", packageId)
+    .eq("teacher_id", user.id)
+    .single();
+
+  if (pkgError || !pkg) return { error: "Pacote não encontrado" };
+  if (pkg.status !== "closed") {
+    return { error: "Pacote já está ativo" };
+  }
+
+  const { data: lessons } = await supabase
+    .from("lessons")
+    .select("status")
+    .eq("package_id", packageId);
+
+  const completed = (lessons ?? []).filter((l) => l.status === "completed")
+    .length;
+  if (completed >= pkg.total_lessons) {
+    return {
+      error:
+        "Todas as aulas do pacote já foram dadas. Aumente o total de aulas antes de reabrir.",
+    };
+  }
+
+  const { error } = await supabase
+    .from("lesson_packages")
+    .update({ status: "active" })
+    .eq("id", packageId)
+    .eq("teacher_id", user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/pacotes");
+  revalidatePath("/inicio");
+  revalidatePath("/agenda");
   revalidatePath(`/pacotes/${packageId}`);
   return { success: true as const };
 }

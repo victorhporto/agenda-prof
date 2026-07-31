@@ -10,7 +10,7 @@ import {
 } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { createClient } from "@/lib/supabase/server";
-import { formatLessonDate, statusLabel } from "@/lib/utils";
+import { AgendaLessonRow } from "@/components/AgendaLessonRow";
 import {
   APP_TIMEZONE,
   formatInSaoPaulo,
@@ -121,14 +121,18 @@ export default async function AgendaPage({
 
   if (view === "mes") {
     const monthStart = startOfMonth(zonedBase);
-    const monthEnd = endOfMonth(zonedBase);
-    const monthStartYmd = format(monthStart, "yyyy-MM-dd");
-    const monthEndYmd = format(monthEnd, "yyyy-MM-dd");
-    rangeStart = ymdBounds(monthStartYmd).start;
-    rangeEnd = ymdBounds(monthEndYmd).end;
+    const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const gridEnd = endOfWeek(endOfMonth(zonedBase), { weekStartsOn: 1 });
+    const gridStartYmd = format(gridStart, "yyyy-MM-dd");
+    const gridEndYmd = format(gridEnd, "yyyy-MM-dd");
+    rangeStart = ymdBounds(gridStartYmd).start;
+    rangeEnd = ymdBounds(gridEndYmd).end;
     prev = format(addMonths(monthStart, -1), "yyyy-MM-dd");
     next = format(addMonths(monthStart, 1), "yyyy-MM-dd");
-    title = formatInSaoPaulo(rangeStart, "MMMM yyyy");
+    title = formatInSaoPaulo(
+      ymdBounds(format(monthStart, "yyyy-MM-dd")).start,
+      "MMMM yyyy",
+    );
   } else if (view === "semana") {
     const weekStart = startOfWeek(zonedBase, { weekStartsOn: 1 });
     const weekStartYmd = format(weekStart, "yyyy-MM-dd");
@@ -313,37 +317,17 @@ export default async function AgendaPage({
         <ul className="space-y-3">
           {lessonRows.map((lesson) => {
             const pkg = lesson.lesson_packages;
-            const studentName = pkg?.students?.name ?? "Aluno";
             return (
-              <li key={lesson.id}>
-                <Link
-                  href={`/aulas/${lesson.id}`}
-                  className="panel block p-4 transition hover:border-[var(--accent)]"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium capitalize text-[var(--ink-muted)]">
-                        {formatLessonDate(lesson.scheduled_at)}
-                      </p>
-                      <p className="mt-1 text-lg font-semibold">{studentName}</p>
-                      <p className="text-sm text-[var(--ink-muted)]">
-                        {pkg?.title}
-                        {lesson.sequence_number
-                          ? ` · Aula ${lesson.sequence_number}/${pkg?.total_lessons}`
-                          : ""}
-                      </p>
-                    </div>
-                    <span className={`badge badge-${lesson.status}`}>
-                      {statusLabel(lesson.status)}
-                    </span>
-                  </div>
-                  {lesson.status === "scheduled" && (
-                    <p className="mt-3 text-sm font-medium text-[var(--accent)]">
-                      Abrir para marcar OK ou remarcar →
-                    </p>
-                  )}
-                </Link>
-              </li>
+              <AgendaLessonRow
+                key={lesson.id}
+                lessonId={lesson.id}
+                scheduledAt={lesson.scheduled_at}
+                status={lesson.status}
+                sequenceNumber={lesson.sequence_number}
+                packageTitle={pkg?.title ?? null}
+                totalLessons={pkg?.total_lessons ?? null}
+                studentName={pkg?.students?.name ?? "Aluno"}
+              />
             );
           })}
         </ul>

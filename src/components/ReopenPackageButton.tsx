@@ -2,23 +2,23 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { markPackagePaid } from "@/lib/payments/actions";
+import { reopenPackage } from "@/lib/packages/actions";
 
-export function MarkPaidButton({ packageId }: { packageId: string }) {
+export function ReopenPackageButton({ packageId }: { packageId: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="space-y-2">
       <button
         type="button"
         disabled={pending}
-        className="btn-primary px-3 py-1.5 text-sm"
+        className="btn-secondary"
         onClick={() => {
           setError(null);
           startTransition(async () => {
-            const result = await markPackagePaid(packageId);
+            const result = await reopenPackage(packageId);
             if (result?.error) {
               setError(result.error);
               return;
@@ -27,9 +27,9 @@ export function MarkPaidButton({ packageId }: { packageId: string }) {
           });
         }}
       >
-        {pending ? "..." : "Marcar pago"}
+        {pending ? "Reabrindo..." : "Reabrir pacote"}
       </button>
-      {error && <p className="form-error text-right text-xs">{error}</p>}
+      {error && <p className="form-error">{error}</p>}
     </div>
   );
 }

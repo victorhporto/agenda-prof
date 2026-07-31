@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { AgendaLessonRow } from "@/components/AgendaLessonRow";
 import { getPackageProgress } from "@/lib/package-progress";
 import { saoPauloDayBounds } from "@/lib/timezone";
 import {
   formatDateOnly,
-  formatLessonDate,
   formatMoney,
   isPaymentOverdue,
   packageBalance,
   paymentStatusLabel,
-  statusLabel,
 } from "@/lib/utils";
 
 export default async function InicioPage() {
@@ -25,8 +24,10 @@ export default async function InicioPage() {
         id,
         scheduled_at,
         status,
+        sequence_number,
         lesson_packages (
           title,
+          total_lessons,
           students ( name )
         )
       `,
@@ -169,30 +170,20 @@ export default async function InicioPage() {
             {todayLessons.map((lesson) => {
               const pkg = lesson.lesson_packages as {
                 title: string;
+                total_lessons: number;
                 students: { name: string } | null;
               } | null;
               return (
-                <li key={lesson.id}>
-                  <Link
-                    href={`/aulas/${lesson.id}`}
-                    className="panel flex items-center justify-between gap-3 p-3 transition hover:border-[var(--accent)]"
-                  >
-                    <div>
-                      <p className="text-sm capitalize text-[var(--ink-muted)]">
-                        {formatLessonDate(lesson.scheduled_at)}
-                      </p>
-                      <p className="font-semibold">
-                        {pkg?.students?.name ?? "Aluno"}
-                      </p>
-                      <p className="text-sm text-[var(--ink-muted)]">
-                        {pkg?.title}
-                      </p>
-                    </div>
-                    <span className={`badge badge-${lesson.status}`}>
-                      {statusLabel(lesson.status)}
-                    </span>
-                  </Link>
-                </li>
+                <AgendaLessonRow
+                  key={lesson.id}
+                  lessonId={lesson.id}
+                  scheduledAt={lesson.scheduled_at}
+                  status={lesson.status}
+                  sequenceNumber={lesson.sequence_number}
+                  packageTitle={pkg?.title ?? null}
+                  totalLessons={pkg?.total_lessons ?? null}
+                  studentName={pkg?.students?.name ?? "Aluno"}
+                />
               );
             })}
           </ul>
@@ -203,7 +194,7 @@ export default async function InicioPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Pagamentos atrasados</h2>
           <Link
-            href="/faturamento"
+            href="/faturamento?status=overdue"
             className="text-sm font-medium text-[var(--accent)]"
           >
             Ver todos →

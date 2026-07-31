@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { createStudent } from "@/lib/students/actions";
 
 export function StudentForm() {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -17,6 +19,7 @@ export function StudentForm() {
         return;
       }
       setOpen(false);
+      router.refresh();
     });
   }
 

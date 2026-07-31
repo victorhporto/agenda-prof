@@ -9,6 +9,28 @@ import {
   rescheduledLessonMessage,
 } from "@/lib/messages/templates";
 import { saoPauloInputToIso } from "@/lib/timezone";
+import { findScheduleConflict } from "@/lib/lessons/conflicts";
+
+async function renumberCompletedSequences(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  packageId: string,
+) {
+  const { data: completed } = await supabase
+    .from("lessons")
+    .select("id")
+    .eq("package_id", packageId)
+    .eq("status", "completed")
+    .order("completed_at", { ascending: true });
+
+  for (let i = 0; i < (completed ?? []).length; i++) {
+    await supabase
+      .from("lessons")
+      .update({ sequence_number: i + 1 })
+      .eq("id", completed![i].id);
+  }
+
+  return (completed ?? []).length;
+}
 
 async function requireUser() {
   const supabase = await createClient();
@@ -84,13 +106,6 @@ export async function completeLesson(lessonId: string) {
     return { error: "Só é possível concluir aulas agendadas" };
   }
 
-  const { count } = await supabase
-    .from("lessons")
-    .select("*", { count: "exact", head: true })
-    .eq("package_id", lesson.package_id)
-    .eq("status", "completed");
-
-  const sequenceNumber = (count ?? 0) + 1;
   const pkg = lesson.lesson_packages as {
     total_lessons: number;
     title: string;
@@ -101,17 +116,23 @@ export async function completeLesson(lessonId: string) {
     return { error: "Pacote não encontrado" };
   }
 
-  if (sequenceNumber > pkg.total_lessons) {
+  const { count } = await supabase
+    .from("lessons")
+    .select("*", { count: "exact", head: true })
+    .eq("package_id", lesson.package_id)
+    .eq("status", "completed");
+
+  if ((count ?? 0) >= pkg.total_lessons) {
     return {
       error: `Este pacote já tem todas as ${pkg.total_lessons} aulas concluídas`,
     };
   }
 
+  // Claim atômico primeiro; sequência é renumerada depois (evita corrida).
   const { data: claimed, error: updateError } = await supabase
     .from("lessons")
     .update({
       status: "completed",
-      sequence_number: sequenceNumber,
       completed_at: new Date().toISOString(),
     })
     .eq("id", lessonId)
@@ -127,7 +148,35 @@ export async function completeLesson(lessonId: string) {
     return { error: "Esta aula já foi atualizada. Atualize a página." };
   }
 
-  const isLastLesson = sequenceNumber >= pkg.total_lessons;
+  const completedCount = await renumberCompletedSequences(
+    supabase,
+    lesson.package_id,
+  );
+
+  if (completedCount > pkg.total_lessons) {
+    await supabase
+      .from("lessons")
+      .update({
+        status: "scheduled",
+        sequence_number: null,
+        completed_at: null,
+      })
+      .eq("id", lessonId)
+      .eq("teacher_id", user.id);
+    await renumberCompletedSequences(supabase, lesson.package_id);
+    return {
+      error: `Este pacote já tem todas as ${pkg.total_lessons} aulas concluídas`,
+    };
+  }
+
+  const { data: numbered } = await supabase
+    .from("lessons")
+    .select("sequence_number")
+    .eq("id", lessonId)
+    .single();
+
+  const sequenceNumber = numbered?.sequence_number ?? completedCount;
+  const isLastLesson = completedCount >= pkg.total_lessons;
 
   if (isLastLesson) {
     await supabase
@@ -272,10 +321,6 @@ export async function rescheduleLesson(
     return { error: "Pacote não encontrado" };
   }
 
-  if (pkg.status === "closed") {
-    return { error: "Pacote encerrado — não é possível remarcar" };
-  }
-
   const oldDate = lesson.scheduled_at;
   const previousStatus = lesson.status;
   const newIso = saoPauloInputToIso(newScheduledAt);
@@ -284,6 +329,14 @@ export async function rescheduleLesson(
   }
 
   // Remarcar falta cria uma nova "scheduled"; precisa haver vaga livre.
+  // Pacote encerrado: exige reabrir (exceto se ainda há aula scheduled sendo movida).
+  if (pkg.status === "closed" && previousStatus === "missed") {
+    return {
+      error:
+        "Pacote encerrado. Reabra o pacote para remarcar uma falta.",
+    };
+  }
+
   if (previousStatus === "missed") {
     const { data: siblings } = await supabase
       .from("lessons")
@@ -303,6 +356,13 @@ export async function rescheduleLesson(
           "Não há vaga no pacote para remarcar. Cancele outra aula agendada ou aumente o total do pacote.",
       };
     }
+  }
+
+  const conflict = await findScheduleConflict(supabase, user.id, newIso, {
+    excludeLessonId: lessonId,
+  });
+  if (conflict) {
+    return { error: conflict.message };
   }
 
   const { data: claimed, error: updateError } = await supabase
@@ -386,6 +446,13 @@ export async function updateLesson(formData: FormData) {
     return { error: "Só é possível editar aulas ainda agendadas" };
   }
 
+  const conflict = await findScheduleConflict(supabase, user.id, scheduledAt, {
+    excludeLessonId: lessonId,
+  });
+  if (conflict) {
+    return { error: conflict.message };
+  }
+
   const { data: updated, error } = await supabase
     .from("lessons")
     .update({
@@ -401,6 +468,108 @@ export async function updateLesson(formData: FormData) {
   if (error) return { error: error.message };
   if (!updated) {
     return { error: "Esta aula já foi atualizada. Atualize a página." };
+  }
+
+  revalidateLessonPaths(lessonId, lesson.package_id);
+
+  return { success: true as const };
+}
+
+export async function revertLessonStatus(lessonId: string) {
+  const { supabase, user } = await requireUser();
+
+  const { data: lesson, error: lessonError } = await supabase
+    .from("lessons")
+    .select(
+      `
+      id,
+      status,
+      package_id,
+      lesson_packages (
+        id,
+        status,
+        total_lessons
+      )
+    `,
+    )
+    .eq("id", lessonId)
+    .eq("teacher_id", user.id)
+    .single();
+
+  if (lessonError || !lesson) {
+    return { error: "Aula não encontrada" };
+  }
+
+  if (
+    lesson.status !== "completed" &&
+    lesson.status !== "missed" &&
+    lesson.status !== "cancelled"
+  ) {
+    return { error: "Só é possível desfazer aulas dadas, faltas ou canceladas" };
+  }
+
+  const pkg = lesson.lesson_packages as {
+    id: string;
+    status: string;
+    total_lessons: number;
+  } | null;
+
+  if (!pkg) {
+    return { error: "Pacote não encontrado" };
+  }
+
+  // completed → scheduled: ocupa a mesma vaga. missed/cancelled → scheduled: precisa de vaga.
+  if (lesson.status === "missed" || lesson.status === "cancelled") {
+    const { data: siblings } = await supabase
+      .from("lessons")
+      .select("status")
+      .eq("package_id", lesson.package_id);
+
+    const completed = (siblings ?? []).filter(
+      (l) => l.status === "completed",
+    ).length;
+    const scheduled = (siblings ?? []).filter(
+      (l) => l.status === "scheduled",
+    ).length;
+
+    if (completed + scheduled >= pkg.total_lessons) {
+      return {
+        error:
+          "Não há vaga no pacote para voltar esta aula para agendada. Cancele outra ou aumente o total.",
+      };
+    }
+  }
+
+  const previousStatus = lesson.status;
+
+  const { data: updated, error } = await supabase
+    .from("lessons")
+    .update({
+      status: "scheduled",
+      sequence_number: null,
+      completed_at: null,
+    })
+    .eq("id", lessonId)
+    .eq("teacher_id", user.id)
+    .eq("status", previousStatus)
+    .select("id")
+    .maybeSingle();
+
+  if (error) return { error: error.message };
+  if (!updated) {
+    return { error: "Esta aula já foi atualizada. Atualize a página." };
+  }
+
+  if (previousStatus === "completed") {
+    await renumberCompletedSequences(supabase, lesson.package_id);
+
+    if (pkg.status === "closed") {
+      await supabase
+        .from("lesson_packages")
+        .update({ status: "active" })
+        .eq("id", lesson.package_id)
+        .eq("teacher_id", user.id);
+    }
   }
 
   revalidateLessonPaths(lessonId, lesson.package_id);

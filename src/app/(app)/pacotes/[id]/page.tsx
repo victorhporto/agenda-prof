@@ -6,6 +6,7 @@ import { formatLessonDate, formatMoney, statusLabel } from "@/lib/utils";
 import { ClosePackageButton } from "@/components/ClosePackageButton";
 import { EditPackagePanel } from "@/components/EditPackagePanel";
 import { PaymentPanel } from "@/components/PaymentPanel";
+import { ReopenPackageButton } from "@/components/ReopenPackageButton";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -75,6 +76,9 @@ export default async function PacoteDetailPage({ params }: Props) {
                 scheduledCount={progress.scheduled}
               />
             )}
+            {pkg.status === "closed" && (
+              <ReopenPackageButton packageId={pkg.id} />
+            )}
           </div>
         </div>
       </div>
@@ -84,7 +88,6 @@ export default async function PacoteDetailPage({ params }: Props) {
         title={pkg.title}
         totalLessons={pkg.total_lessons}
         price={pkg.price}
-        paymentDueDate={pkg.payment_due_date}
         completedCount={progress.completed}
         scheduledCount={progress.scheduled}
       />

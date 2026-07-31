@@ -15,7 +15,7 @@ export async function syncPackagePaymentTotals(
 ) {
   const { data: pkg } = await supabase
     .from("lesson_packages")
-    .select("id, price")
+    .select("id, price, paid_at, payment_status")
     .eq("id", packageId)
     .eq("teacher_id", teacherId)
     .single();
@@ -39,14 +39,17 @@ export async function syncPackagePaymentTotals(
 
   if (amountPaid <= 0) {
     paymentStatus = "pending";
+    paidAt = null;
   } else if (price > 0 && amountPaid >= price) {
     paymentStatus = "paid";
-    paidAt = new Date().toISOString();
+    // Preserva a data de quitação já existente
+    paidAt = pkg.paid_at ?? new Date().toISOString();
   } else if (price <= 0 && amountPaid > 0) {
     paymentStatus = "paid";
-    paidAt = new Date().toISOString();
+    paidAt = pkg.paid_at ?? new Date().toISOString();
   } else {
     paymentStatus = "partial";
+    paidAt = null;
   }
 
   const { error } = await supabase

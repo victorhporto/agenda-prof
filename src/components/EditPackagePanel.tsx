@@ -9,7 +9,6 @@ type Props = {
   title: string;
   totalLessons: number;
   price: number | null;
-  paymentDueDate: string | null;
   completedCount: number;
   scheduledCount: number;
 };
@@ -19,7 +18,6 @@ export function EditPackagePanel({
   title,
   totalLessons,
   price,
-  paymentDueDate,
   completedCount,
   scheduledCount,
 }: Props) {
@@ -90,15 +88,9 @@ export function EditPackagePanel({
               className="input mt-1"
             />
           </label>
-          <label className="block text-sm font-medium text-[var(--ink-muted)]">
-            Data prevista do pagamento
-            <input
-              name="payment_due_date"
-              type="date"
-              defaultValue={paymentDueDate?.slice(0, 10) ?? ""}
-              className="input mt-1"
-            />
-          </label>
+          <p className="text-xs text-[var(--ink-muted)]">
+            A data prevista do pagamento fica em Pagamentos, abaixo.
+          </p>
           {error && <p className="form-error">{error}</p>}
           <button type="submit" disabled={pending} className="btn-primary w-full">
             {pending ? "Salvando..." : "Salvar pacote"}

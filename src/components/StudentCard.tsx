@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { updateStudent } from "@/lib/students/actions";
 import { DeleteStudentButton } from "@/components/DeleteStudentButton";
 
@@ -12,6 +13,7 @@ type Student = {
 };
 
 export function StudentCard({ student }: { student: Student }) {
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +27,7 @@ export function StudentCard({ student }: { student: Student }) {
         return;
       }
       setEditing(false);
+      router.refresh();
     });
   }
 
