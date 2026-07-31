@@ -70,7 +70,10 @@ export default async function PacoteDetailPage({ params }: Props) {
               </Link>
             )}
             {pkg.status === "active" && (
-              <ClosePackageButton packageId={pkg.id} />
+              <ClosePackageButton
+                packageId={pkg.id}
+                scheduledCount={progress.scheduled}
+              />
             )}
           </div>
         </div>

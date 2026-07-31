@@ -18,8 +18,14 @@ import {
   todayYmdSaoPaulo,
 } from "@/lib/timezone";
 
-type SearchParams = Promise<{ dia?: string; view?: string }>;
+type SearchParams = Promise<{
+  dia?: string;
+  view?: string;
+  filtro?: string;
+  q?: string;
+}>;
 type AgendaView = "dia" | "semana" | "mes";
+type AgendaFilter = "todas" | "pendentes" | "atrasadas";
 
 type LessonRow = {
   id: string;
@@ -40,11 +46,57 @@ function resolveView(raw: string | undefined): AgendaView {
   return "dia";
 }
 
+function resolveFilter(raw: string | undefined): AgendaFilter {
+  if (raw === "pendentes" || raw === "atrasadas") return raw;
+  return "todas";
+}
+
 function ymdBounds(ymd: string) {
   return {
     start: fromZonedTime(`${ymd}T00:00:00`, APP_TIMEZONE),
     end: fromZonedTime(`${ymd}T23:59:59.999`, APP_TIMEZONE),
   };
+}
+
+function agendaHref({
+  dia,
+  view,
+  filtro,
+  q,
+}: {
+  dia: string;
+  view: AgendaView;
+  filtro?: AgendaFilter;
+  q?: string;
+}) {
+  const params = new URLSearchParams();
+  params.set("dia", dia);
+  params.set("view", view);
+  if (filtro && filtro !== "todas") params.set("filtro", filtro);
+  if (q?.trim()) params.set("q", q.trim());
+  return `/agenda?${params.toString()}`;
+}
+
+function applyLessonFilters(
+  lessons: LessonRow[],
+  filtro: AgendaFilter,
+  q: string,
+  now: Date,
+) {
+  const query = q.trim().toLowerCase();
+  return lessons.filter((lesson) => {
+    if (filtro === "pendentes" && lesson.status !== "scheduled") return false;
+    if (filtro === "atrasadas") {
+      if (lesson.status !== "scheduled") return false;
+      if (new Date(lesson.scheduled_at).getTime() >= now.getTime()) return false;
+    }
+    if (query) {
+      const name = lesson.lesson_packages?.students?.name?.toLowerCase() ?? "";
+      const title = lesson.lesson_packages?.title?.toLowerCase() ?? "";
+      if (!name.includes(query) && !title.includes(query)) return false;
+    }
+    return true;
+  });
 }
 
 export default async function AgendaPage({
@@ -54,9 +106,12 @@ export default async function AgendaPage({
 }) {
   const params = await searchParams;
   const view = resolveView(params.view);
+  const filtro = resolveFilter(params.filtro);
+  const q = params.q ?? "";
   const dayKey = params.dia?.slice(0, 10) || todayYmdSaoPaulo();
   const baseDate = parseYmdInSaoPaulo(dayKey);
   const zonedBase = toZonedTime(baseDate, APP_TIMEZONE);
+  const now = new Date();
 
   let rangeStart: Date;
   let rangeEnd: Date;
@@ -112,11 +167,20 @@ export default async function AgendaPage({
     .lte("scheduled_at", rangeEnd.toISOString())
     .order("scheduled_at", { ascending: true });
 
-  const lessonRows = (lessons ?? []) as unknown as LessonRow[];
+  const allLessons = (lessons ?? []) as unknown as LessonRow[];
+  const lessonRows = applyLessonFilters(allLessons, filtro, q, now);
   const todayKey = todayYmdSaoPaulo();
 
   const monthCells =
-    view === "mes" ? buildMonthCells(zonedBase, lessonRows, todayKey) : null;
+    view === "mes"
+      ? buildMonthCells(zonedBase, lessonRows, todayKey, filtro, q)
+      : null;
+
+  const filterTabs: { key: AgendaFilter; label: string }[] = [
+    { key: "todas", label: "Todas" },
+    { key: "pendentes", label: "Pendentes de OK" },
+    { key: "atrasadas", label: "Atrasadas" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -134,19 +198,19 @@ export default async function AgendaPage({
 
       <div className="flex flex-wrap items-center gap-2">
         <Link
-          href={`/agenda?dia=${prev}&view=${view}`}
+          href={agendaHref({ dia: prev, view, filtro, q })}
           className="btn-secondary px-3 py-2 text-sm"
         >
           ←
         </Link>
         <Link
-          href={`/agenda?dia=${todayKey}&view=${view}`}
+          href={agendaHref({ dia: todayKey, view, filtro, q })}
           className="btn-secondary px-3 py-2 text-sm"
         >
           Hoje
         </Link>
         <Link
-          href={`/agenda?dia=${next}&view=${view}`}
+          href={agendaHref({ dia: next, view, filtro, q })}
           className="btn-secondary px-3 py-2 text-sm"
         >
           →
@@ -161,7 +225,7 @@ export default async function AgendaPage({
           ).map(([value, label]) => (
             <Link
               key={value}
-              href={`/agenda?dia=${dayKey}&view=${value}`}
+              href={agendaHref({ dia: dayKey, view: value, filtro, q })}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
                 view === value
                   ? "bg-[var(--accent-soft)] text-[var(--accent)]"
@@ -174,17 +238,76 @@ export default async function AgendaPage({
         </div>
       </div>
 
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {filterTabs.map((item) => (
+            <Link
+              key={item.key}
+              href={agendaHref({
+                dia: dayKey,
+                view,
+                filtro: item.key,
+                q,
+              })}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                filtro === item.key
+                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                  : "border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-muted)]"
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+
+        <form
+          action="/agenda"
+          method="get"
+          className="flex flex-col gap-2 sm:flex-row"
+        >
+          <input type="hidden" name="dia" value={dayKey} />
+          <input type="hidden" name="view" value={view} />
+          {filtro !== "todas" ? (
+            <input type="hidden" name="filtro" value={filtro} />
+          ) : null}
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Buscar por aluno ou pacote..."
+            className="input"
+          />
+          <button type="submit" className="btn-secondary shrink-0">
+            Buscar
+          </button>
+        </form>
+      </div>
+
       {view === "mes" && monthCells ? (
-        <MonthGrid cells={monthCells} />
+        <MonthGrid cells={monthCells} filtro={filtro} q={q} />
       ) : !lessonRows.length ? (
         <div className="panel p-8 text-center">
-          <p className="font-medium">Nenhuma aula neste período</p>
-          <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            Agende uma aula a partir de um pacote ativo.
+          <p className="font-medium">
+            {allLessons.length && (filtro !== "todas" || q.trim())
+              ? "Nenhuma aula com este filtro"
+              : "Nenhuma aula neste período"}
           </p>
-          <Link href="/aulas/nova" className="btn-primary mt-4 inline-flex">
-            Agendar aula
-          </Link>
+          <p className="mt-1 text-sm text-[var(--ink-muted)]">
+            {allLessons.length && (filtro !== "todas" || q.trim())
+              ? "Tente limpar a busca ou mudar o filtro."
+              : "Agende uma aula a partir de um pacote ativo."}
+          </p>
+          {!(allLessons.length && (filtro !== "todas" || q.trim())) ? (
+            <Link href="/aulas/nova" className="btn-primary mt-4 inline-flex">
+              Agendar aula
+            </Link>
+          ) : (
+            <Link
+              href={agendaHref({ dia: dayKey, view })}
+              className="btn-secondary mt-4 inline-flex"
+            >
+              Limpar filtros
+            </Link>
+          )}
         </div>
       ) : (
         <ul className="space-y-3">
@@ -241,6 +364,8 @@ function buildMonthCells(
   zonedBase: Date,
   lessons: LessonRow[],
   todayKey: string,
+  _filtro: AgendaFilter,
+  _q: string,
 ): MonthCell[] {
   const monthStart = startOfMonth(zonedBase);
   const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 });
@@ -268,7 +393,15 @@ function buildMonthCells(
   return cells;
 }
 
-function MonthGrid({ cells }: { cells: MonthCell[] }) {
+function MonthGrid({
+  cells,
+  filtro,
+  q,
+}: {
+  cells: MonthCell[];
+  filtro: AgendaFilter;
+  q: string;
+}) {
   const totalInMonth = cells
     .filter((cell) => cell.inMonth)
     .reduce((sum, cell) => sum + cell.lessons.length, 0);
@@ -276,8 +409,9 @@ function MonthGrid({ cells }: { cells: MonthCell[] }) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-[var(--ink-muted)]">
-        {totalInMonth} aula{totalInMonth === 1 ? "" : "s"} neste mês · toque em
-        um dia para ver o detalhe
+        {totalInMonth} aula{totalInMonth === 1 ? "" : "s"} neste mês
+        {filtro !== "todas" || q.trim() ? " (filtradas)" : ""} · toque em um dia
+        para ver o detalhe
       </p>
 
       <div className="panel overflow-hidden p-2 sm:p-3">
@@ -302,7 +436,12 @@ function MonthGrid({ cells }: { cells: MonthCell[] }) {
             return (
               <Link
                 key={cell.ymd}
-                href={`/agenda?dia=${cell.ymd}&view=dia`}
+                href={agendaHref({
+                  dia: cell.ymd,
+                  view: "dia",
+                  filtro,
+                  q,
+                })}
                 className={`min-h-[4.5rem] rounded-xl border p-1.5 transition sm:min-h-[5.5rem] sm:p-2 ${
                   cell.inMonth
                     ? "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent)]"

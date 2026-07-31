@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { syncPackagePaymentTotals } from "@/lib/payments/actions";
 import { saoPauloInputToIso, todayYmdSaoPaulo } from "@/lib/timezone";
 
 export async function createPackage(formData: FormData) {
@@ -147,12 +148,26 @@ export async function createLesson(formData: FormData) {
   redirect(`/pacotes/${packageId}`);
 }
 
-export async function closePackage(packageId: string) {
+export async function closePackage(
+  packageId: string,
+  options?: { cancelScheduled?: boolean },
+) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado" };
+
+  if (options?.cancelScheduled) {
+    const { error: cancelError } = await supabase
+      .from("lessons")
+      .update({ status: "cancelled" })
+      .eq("package_id", packageId)
+      .eq("teacher_id", user.id)
+      .eq("status", "scheduled");
+
+    if (cancelError) return { error: cancelError.message };
+  }
 
   const { error } = await supabase
     .from("lesson_packages")
@@ -164,6 +179,7 @@ export async function closePackage(packageId: string) {
 
   revalidatePath("/pacotes");
   revalidatePath("/inicio");
+  revalidatePath("/agenda");
   revalidatePath(`/pacotes/${packageId}`);
   return { success: true };
 }
@@ -235,6 +251,9 @@ export async function updatePackage(formData: FormData) {
     .eq("teacher_id", user.id);
 
   if (error) return { error: error.message };
+
+  const sync = await syncPackagePaymentTotals(supabase, packageId, user.id);
+  if (sync.error) return { error: sync.error };
 
   revalidatePath("/pacotes");
   revalidatePath("/faturamento");

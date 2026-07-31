@@ -8,7 +8,7 @@ import { todayYmdSaoPaulo } from "@/lib/timezone";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
-async function syncPackagePaymentTotals(
+export async function syncPackagePaymentTotals(
   supabase: ServerClient,
   packageId: string,
   teacherId: string,
@@ -197,10 +197,22 @@ export async function markPackagePaid(packageId: string) {
       notes: "Quitação do pacote",
     });
     if (error) return { error: error.message };
-  }
 
-  const sync = await syncPackagePaymentTotals(supabase, packageId, user.id);
-  if (sync.error) return { error: sync.error };
+    const sync = await syncPackagePaymentTotals(supabase, packageId, user.id);
+    if (sync.error) return { error: sync.error };
+  } else {
+    // Pacote sem valor restante (gratuito ou já coberto) — marca pago mesmo assim.
+    const { error } = await supabase
+      .from("lesson_packages")
+      .update({
+        payment_status: "paid",
+        paid_at: new Date().toISOString(),
+        amount_paid: Number(pkg.amount_paid ?? 0),
+      })
+      .eq("id", packageId)
+      .eq("teacher_id", user.id);
+    if (error) return { error: error.message };
+  }
 
   revalidatePaymentPaths(packageId);
   return { success: true };

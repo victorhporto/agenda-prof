@@ -74,5 +74,9 @@ export async function deleteStudent(id: string) {
   if (error) return { error: error.message };
 
   revalidatePath("/alunos");
+  revalidatePath("/pacotes");
+  revalidatePath("/agenda");
+  revalidatePath("/inicio");
+  revalidatePath("/faturamento");
   return { success: true };
 }

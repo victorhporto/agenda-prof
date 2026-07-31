@@ -130,7 +130,7 @@ export default async function InicioPage() {
             {overduePayments.length}
           </p>
           <Link
-            href="/faturamento?status=pending"
+            href="/faturamento?status=overdue"
             className="mt-1 inline-block text-xs font-medium text-[var(--accent)]"
           >
             Ver faturamento →

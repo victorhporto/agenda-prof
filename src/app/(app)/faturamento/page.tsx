@@ -43,7 +43,15 @@ export default async function FaturamentoPage({
 
   const { data: rawPackages } = await query;
 
-  const packages = [...(rawPackages ?? [])].sort((a, b) => {
+  let packages = [...(rawPackages ?? [])];
+
+  if (filter === "overdue") {
+    packages = packages.filter((pkg) =>
+      isPaymentOverdue(pkg.payment_status, pkg.payment_due_date),
+    );
+  }
+
+  packages.sort((a, b) => {
     const rank = (pkg: {
       payment_status: string;
       payment_due_date: string | null;
@@ -102,6 +110,10 @@ export default async function FaturamentoPage({
 
   const filters = [
     { key: "all", label: "Todos" },
+    {
+      key: "overdue",
+      label: `Atrasados (${totals.overdueCount})`,
+    },
     { key: "pending", label: `Pendentes (${totals.pendingCount})` },
     { key: "partial", label: `Parciais (${totals.partialCount})` },
     { key: "paid", label: `Pagos (${totals.paidCount})` },
