@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -29,6 +29,20 @@ const mobileLinks: { href: string; label: string; icon: IconName }[] = [
   { href: "/agenda", label: "Agenda", icon: "calendar" },
   { href: "/alunos", label: "Alunos", icon: "users" },
 ];
+
+function NavPending({ className }: { className?: string }) {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return (
+    <span
+      aria-hidden
+      className={
+        className ??
+        "absolute inset-x-2 bottom-1 h-0.5 animate-pulse rounded-full bg-[var(--accent)]"
+      }
+    />
+  );
+}
 
 function NavIcon({ name }: { name: IconName }) {
   const paths: Record<IconName, ReactNode> = {
@@ -101,6 +115,87 @@ function NavIcon({ name }: { name: IconName }) {
   );
 }
 
+function DesktopNavLink({
+  href,
+  label,
+  active,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`relative rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${
+        active
+          ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+          : "text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]"
+      }`}
+    >
+      {label}
+      <NavPending className="absolute inset-x-2 -bottom-0.5 h-0.5 animate-pulse rounded-full bg-[var(--accent)]" />
+    </Link>
+  );
+}
+
+function MobileNavLink({
+  href,
+  label,
+  icon,
+  active,
+}: {
+  href: string;
+  label: string;
+  icon: IconName;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium ${
+        active
+          ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+          : "text-[var(--ink-muted)]"
+      }`}
+    >
+      <NavIcon name={icon} />
+      {label}
+      <NavPending />
+    </Link>
+  );
+}
+
+function MoreMenuLink({
+  href,
+  icon,
+  title,
+  subtitle,
+}: {
+  href: string;
+  icon: IconName;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="relative flex items-center gap-3 rounded-xl px-3 py-3 font-medium text-[var(--ink)] hover:bg-[var(--bg)]"
+    >
+      <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
+        <NavIcon name={icon} />
+      </span>
+      <span>
+        <span className="block">{title}</span>
+        <span className="block text-xs font-normal text-[var(--ink-muted)]">
+          {subtitle}
+        </span>
+      </span>
+      <NavPending className="absolute inset-y-3 right-3 w-1.5 animate-pulse rounded-full bg-[var(--accent)]" />
+    </Link>
+  );
+}
+
 export function AppNav() {
   const pathname = usePathname();
   const router = useRouter();
@@ -127,27 +222,20 @@ export function AppNav() {
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-4 py-3">
           <Link
             href="/inicio"
-            className="font-display text-lg font-semibold tracking-tight text-[var(--ink)]"
+            className="relative font-display text-lg font-semibold tracking-tight text-[var(--ink)]"
           >
             AgendaProf
+            <NavPending className="absolute -bottom-1 left-0 h-0.5 w-full animate-pulse rounded-full bg-[var(--accent)]" />
           </Link>
           <nav className="hidden items-center gap-1 lg:flex">
-            {desktopLinks.map((link) => {
-              const active = pathname.startsWith(link.href);
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${
-                    active
-                      ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                      : "text-[var(--ink-muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
+            {desktopLinks.map((link) => (
+              <DesktopNavLink
+                key={link.href}
+                href={link.href}
+                label={link.label}
+                active={pathname.startsWith(link.href)}
+              />
+            ))}
             <button
               type="button"
               onClick={logout}
@@ -174,48 +262,24 @@ export function AppNav() {
             <p className="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
               Mais opções
             </p>
-            <Link
+            <MoreMenuLink
               href="/pacotes"
-              className="flex items-center gap-3 rounded-xl px-3 py-3 font-medium text-[var(--ink)] hover:bg-[var(--bg)]"
-            >
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
-                <NavIcon name="package" />
-              </span>
-              <span>
-                <span className="block">Pacotes</span>
-                <span className="block text-xs font-normal text-[var(--ink-muted)]">
-                  Aulas e saldo
-                </span>
-              </span>
-            </Link>
-            <Link
+              icon="package"
+              title="Pacotes"
+              subtitle="Aulas e saldo"
+            />
+            <MoreMenuLink
               href="/faturamento"
-              className="flex items-center gap-3 rounded-xl px-3 py-3 font-medium text-[var(--ink)] hover:bg-[var(--bg)]"
-            >
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
-                <NavIcon name="finance" />
-              </span>
-              <span>
-                <span className="block">Faturamento</span>
-                <span className="block text-xs font-normal text-[var(--ink-muted)]">
-                  Pagamentos e valores
-                </span>
-              </span>
-            </Link>
-            <Link
+              icon="finance"
+              title="Faturamento"
+              subtitle="Pagamentos e valores"
+            />
+            <MoreMenuLink
               href="/mensagens"
-              className="flex items-center gap-3 rounded-xl px-3 py-3 font-medium text-[var(--ink)] hover:bg-[var(--bg)]"
-            >
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
-                <NavIcon name="message" />
-              </span>
-              <span>
-                <span className="block">Mensagens</span>
-                <span className="block text-xs font-normal text-[var(--ink-muted)]">
-                  Textos e assinatura
-                </span>
-              </span>
-            </Link>
+              icon="message"
+              title="Mensagens"
+              subtitle="Textos e assinatura"
+            />
             <button
               type="button"
               onClick={logout}
@@ -235,23 +299,15 @@ export function AppNav() {
         className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden"
       >
         <div className="mx-auto grid max-w-md grid-cols-4 px-2 py-1.5">
-          {mobileLinks.map((link) => {
-            const active = pathname.startsWith(link.href);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium ${
-                  active
-                    ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                    : "text-[var(--ink-muted)]"
-                }`}
-              >
-                <NavIcon name={link.icon} />
-                {link.label}
-              </Link>
-            );
-          })}
+          {mobileLinks.map((link) => (
+            <MobileNavLink
+              key={link.href}
+              href={link.href}
+              label={link.label}
+              icon={link.icon}
+              active={pathname.startsWith(link.href)}
+            />
+          ))}
           <button
             type="button"
             aria-expanded={moreOpen}

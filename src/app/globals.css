@@ -234,3 +234,30 @@ body {
   font-size: 0.875rem;
   color: var(--danger);
 }
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--border) 70%, var(--surface)) 0%,
+    color-mix(in srgb, var(--accent-soft) 55%, var(--surface)) 45%,
+    color-mix(in srgb, var(--border) 70%, var(--surface)) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background: color-mix(in srgb, var(--border) 55%, var(--surface));
+  }
+}
