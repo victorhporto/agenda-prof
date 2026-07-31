@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { EmailDigestSettings } from "@/components/EmailDigestSettings";
 import { MessageTemplatesForm } from "@/components/MessageTemplatesForm";
 
 export default async function MensagensPage() {
@@ -10,7 +11,7 @@ export default async function MensagensPage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "msg_completed, msg_missed, msg_rescheduled, msg_renewal, msg_payment_reminder, msg_signature, msg_signature_enabled",
+      "msg_completed, msg_missed, msg_rescheduled, msg_renewal, msg_payment_reminder, msg_signature, msg_signature_enabled, notify_email",
     )
     .eq("id", user!.id)
     .single();
@@ -26,6 +27,11 @@ export default async function MensagensPage() {
           chaves — elas são preenchidas automaticamente.
         </p>
       </div>
+
+      <EmailDigestSettings
+        initialEnabled={profile?.notify_email ?? true}
+        email={user?.email ?? null}
+      />
 
       <MessageTemplatesForm
         initial={{

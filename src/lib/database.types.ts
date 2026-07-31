@@ -196,6 +196,7 @@ export type Database = {
           msg_rescheduled: string | null;
           msg_signature: string | null;
           msg_signature_enabled: boolean;
+          notify_email: boolean;
         };
         Insert: {
           created_at?: string;
@@ -208,6 +209,7 @@ export type Database = {
           msg_rescheduled?: string | null;
           msg_signature?: string | null;
           msg_signature_enabled?: boolean;
+          notify_email?: boolean;
         };
         Update: {
           created_at?: string;
@@ -220,6 +222,7 @@ export type Database = {
           msg_rescheduled?: string | null;
           msg_signature?: string | null;
           msg_signature_enabled?: boolean;
+          notify_email?: boolean;
         };
         Relationships: [];
       };
