@@ -13,7 +13,8 @@ export default async function HomePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center px-6 py-16">
       <p className="font-display text-4xl font-bold tracking-tight text-[var(--ink)] sm:text-5xl">
-        AgendaProf
+        Agenda
+        <span className="text-[var(--accent)]">Prof</span>
       </p>
       <h1 className="mt-4 max-w-xl text-xl leading-relaxed text-[var(--ink-muted)] sm:text-2xl">
         Controle pacotes, aulas dadas e remarcações — com mensagens prontas para

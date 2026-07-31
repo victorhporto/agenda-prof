@@ -224,7 +224,8 @@ export function AppNav() {
             href="/inicio"
             className="relative font-display text-lg font-semibold tracking-tight text-[var(--ink)]"
           >
-            AgendaProf
+            Agenda
+            <span className="text-[var(--accent)]">Prof</span>
             <NavPending className="absolute -bottom-1 left-0 h-0.5 w-full animate-pulse rounded-full bg-[var(--accent)]" />
           </Link>
           <nav className="hidden items-center gap-1 lg:flex">

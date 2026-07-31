@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { paymentReminderMessage } from "@/lib/messages/templates";
 import { packageBalance } from "@/lib/utils";
 import { todayYmdSaoPaulo } from "@/lib/timezone";
+import { computePaymentSync } from "@/lib/payments/rules";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -32,38 +33,29 @@ export async function syncPackagePaymentTotals(
     (sum, entry) => sum + Number(entry.amount),
     0,
   );
-  const price = Number(pkg.price ?? 0);
 
-  let paymentStatus: "pending" | "partial" | "paid" = "pending";
-  let paidAt: string | null = null;
-
-  if (amountPaid <= 0) {
-    paymentStatus = "pending";
-    paidAt = null;
-  } else if (price > 0 && amountPaid >= price) {
-    paymentStatus = "paid";
-    // Preserva a data de quitação já existente
-    paidAt = pkg.paid_at ?? new Date().toISOString();
-  } else if (price <= 0 && amountPaid > 0) {
-    paymentStatus = "paid";
-    paidAt = pkg.paid_at ?? new Date().toISOString();
-  } else {
-    paymentStatus = "partial";
-    paidAt = null;
-  }
+  const synced = computePaymentSync({
+    price: pkg.price,
+    amountPaid,
+    existingPaidAt: pkg.paid_at,
+  });
 
   const { error } = await supabase
     .from("lesson_packages")
     .update({
-      amount_paid: amountPaid,
-      payment_status: paymentStatus,
-      paid_at: paidAt,
+      amount_paid: synced.amountPaid,
+      payment_status: synced.paymentStatus,
+      paid_at: synced.paidAt,
     })
     .eq("id", packageId)
     .eq("teacher_id", teacherId);
 
   if (error) return { error: error.message };
-  return { success: true as const, amountPaid, paymentStatus };
+  return {
+    success: true as const,
+    amountPaid: synced.amountPaid,
+    paymentStatus: synced.paymentStatus,
+  };
 }
 
 function revalidatePaymentPaths(packageId: string) {
