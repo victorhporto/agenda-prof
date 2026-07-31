@@ -3,12 +3,13 @@ import { formatInSaoPaulo } from "@/lib/timezone";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
-const DEFAULT_DURATION_MS = 60 * 60 * 1000;
+export const DEFAULT_LESSON_DURATION_MS = 60 * 60 * 1000;
 
-function overlaps(
+/** Duas aulas de 1h se sobrepõem quando os intervalos [start, start+1h) cruzam. */
+export function slotsOverlap(
   aStartMs: number,
   bStartMs: number,
-  durationMs = DEFAULT_DURATION_MS,
+  durationMs = DEFAULT_LESSON_DURATION_MS,
 ) {
   const aEnd = aStartMs + durationMs;
   const bEnd = bStartMs + durationMs;
@@ -24,8 +25,12 @@ export async function findScheduleConflict(
   const startMs = new Date(scheduledAtIso).getTime();
   if (!Number.isFinite(startMs)) return null;
 
-  const windowStart = new Date(startMs - DEFAULT_DURATION_MS).toISOString();
-  const windowEnd = new Date(startMs + DEFAULT_DURATION_MS).toISOString();
+  const windowStart = new Date(
+    startMs - DEFAULT_LESSON_DURATION_MS,
+  ).toISOString();
+  const windowEnd = new Date(
+    startMs + DEFAULT_LESSON_DURATION_MS,
+  ).toISOString();
 
   let query = supabase
     .from("lessons")
@@ -50,7 +55,7 @@ export async function findScheduleConflict(
 
   const { data } = await query;
   const conflict = (data ?? []).find((lesson) =>
-    overlaps(startMs, new Date(lesson.scheduled_at).getTime()),
+    slotsOverlap(startMs, new Date(lesson.scheduled_at).getTime()),
   );
 
   if (!conflict) return null;

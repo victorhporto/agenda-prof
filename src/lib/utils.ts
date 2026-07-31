@@ -68,9 +68,9 @@ export function formatDateOnly(value: string | null | undefined) {
 export function isPaymentOverdue(
   paymentStatus: string,
   paymentDueDate: string | null | undefined,
+  today = todayYmdSaoPaulo(),
 ) {
   if (paymentStatus === "paid" || !paymentDueDate) return false;
-  const today = todayYmdSaoPaulo();
   return paymentDueDate.slice(0, 10) < today;
 }
 

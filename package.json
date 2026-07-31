@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "vitest run && next build",
     "start": "next start",
     "lint": "eslint"
   },
@@ -27,6 +29,7 @@
     "eslint-config-next": "16.2.12",
     "supabase": "^2.110.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }
