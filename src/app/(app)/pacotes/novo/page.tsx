@@ -1,26 +1,62 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
 import { PackageForm } from "@/components/PackageForm";
+import { createClient } from "@/lib/supabase/server";
 
-export default async function NovoPacotePage() {
+type Props = {
+  searchParams: Promise<{ student?: string; copy?: string }>;
+};
+
+export default async function NovoPacotePage({ searchParams }: Props) {
+  const { student: studentId, copy: copyId } = await searchParams;
   const supabase = await createClient();
+
   const { data: students } = await supabase
     .from("students")
     .select("id, name")
     .order("name");
 
+  let defaultStudentId = studentId;
+  let prefill: { title: string; total_lessons: number; price: number | null } | undefined;
+
+  if (copyId) {
+    const { data: source } = await supabase
+      .from("lesson_packages")
+      .select("student_id, title, total_lessons, price")
+      .eq("id", copyId)
+      .single();
+
+    if (!source) notFound();
+
+    defaultStudentId = defaultStudentId ?? source.student_id;
+    prefill = {
+      title: source.title,
+      total_lessons: source.total_lessons,
+      price: source.price,
+    };
+  }
+
+  const backHref = defaultStudentId
+    ? `/alunos/${defaultStudentId}`
+    : "/pacotes";
+
   return (
     <div className="space-y-6">
       <div>
         <Link
-          href="/pacotes"
+          href={backHref}
           className="text-sm font-medium text-[var(--accent)]"
         >
-          ← Pacotes
+          ← {defaultStudentId ? "Aluno" : "Pacotes"}
         </Link>
         <h1 className="font-display mt-2 text-3xl font-bold tracking-tight">
-          Novo pacote
+          {prefill ? "Repetir pacote" : "Novo pacote"}
         </h1>
+        {prefill && (
+          <p className="mt-1 text-sm text-[var(--ink-muted)]">
+            Dados copiados do pacote anterior. Revise antes de criar.
+          </p>
+        )}
       </div>
 
       {!students?.length ? (
@@ -31,7 +67,11 @@ export default async function NovoPacotePage() {
           </Link>
         </div>
       ) : (
-        <PackageForm students={students} />
+        <PackageForm
+          students={students}
+          defaultStudentId={defaultStudentId}
+          prefill={prefill}
+        />
       )}
     </div>
   );

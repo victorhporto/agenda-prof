@@ -1,7 +1,7 @@
 import Link from "next/link";
+import { PackageListItem } from "@/components/PackageListItem";
 import { createClient } from "@/lib/supabase/server";
 import { getPackageProgress } from "@/lib/package-progress";
-import { formatMoney, paymentStatusLabel } from "@/lib/utils";
 
 export default async function PacotesPage() {
   const supabase = await createClient();
@@ -49,63 +49,11 @@ export default async function PacotesPage() {
             const student = pkg.students as { name: string } | null;
             return (
               <li key={pkg.id}>
-                <Link
-                  href={`/pacotes/${pkg.id}`}
-                  className="panel block p-4 transition hover:border-[var(--accent)]"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-lg font-semibold">{pkg.title}</p>
-                      <p className="text-sm text-[var(--ink-muted)]">
-                        {student?.name}
-                        {pkg.price != null ? ` · ${formatMoney(pkg.price)}` : ""}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span
-                        className={`badge ${
-                          pkg.status === "active"
-                            ? "badge-completed"
-                            : "badge-cancelled"
-                        }`}
-                      >
-                        {pkg.status === "active" ? "Ativo" : "Encerrado"}
-                      </span>
-                      <span
-                        className={`badge ${
-                          pkg.payment_status === "paid"
-                            ? "badge-completed"
-                            : pkg.payment_status === "partial"
-                              ? "badge-missed"
-                              : "badge-scheduled"
-                        }`}
-                      >
-                        {paymentStatusLabel(pkg.payment_status)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <div className="mb-1 flex justify-between text-sm">
-                      <span>
-                        {progress.completed} de {pkg.total_lessons} dadas
-                      </span>
-                      <span className="text-[var(--ink-muted)]">
-                        {progress.remaining} restantes
-                      </span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-[var(--bg)]">
-                      <div
-                        className="h-full rounded-full bg-[var(--accent)] transition-all"
-                        style={{
-                          width: `${Math.min(
-                            100,
-                            (progress.completed / pkg.total_lessons) * 100,
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </Link>
+                <PackageListItem
+                  pkg={pkg}
+                  progress={progress}
+                  studentName={student?.name}
+                />
               </li>
             );
           })}

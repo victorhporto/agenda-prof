@@ -5,10 +5,26 @@ import { createPackage } from "@/lib/packages/actions";
 
 type StudentOption = { id: string; name: string };
 
-export function PackageForm({ students }: { students: StudentOption[] }) {
+type PackageFormProps = {
+  students: StudentOption[];
+  defaultStudentId?: string;
+  prefill?: {
+    title: string;
+    total_lessons: number;
+    price: number | null;
+  };
+};
+
+export function PackageForm({
+  students,
+  defaultStudentId,
+  prefill,
+}: PackageFormProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [price, setPrice] = useState("");
+  const [price, setPrice] = useState(
+    prefill?.price != null ? String(prefill.price) : "",
+  );
   const [paymentStatus, setPaymentStatus] = useState("pending");
   const [paymentDueDate, setPaymentDueDate] = useState("");
 
@@ -49,7 +65,12 @@ export function PackageForm({ students }: { students: StudentOption[] }) {
     <form action={onSubmit} className="panel space-y-4 p-5">
       <label className="block text-sm font-medium text-[var(--ink-muted)]">
         Aluno
-        <select name="student_id" required className="input mt-1">
+        <select
+          name="student_id"
+          required
+          className="input mt-1"
+          defaultValue={defaultStudentId ?? ""}
+        >
           <option value="">Selecione...</option>
           {students.map((s) => (
             <option key={s.id} value={s.id}>
@@ -64,6 +85,7 @@ export function PackageForm({ students }: { students: StudentOption[] }) {
           name="title"
           required
           placeholder="Ex.: Pacote de 4 aulas"
+          defaultValue={prefill?.title ?? ""}
           className="input mt-1"
         />
       </label>
@@ -73,7 +95,7 @@ export function PackageForm({ students }: { students: StudentOption[] }) {
           name="total_lessons"
           type="number"
           min={1}
-          defaultValue={4}
+          defaultValue={prefill?.total_lessons ?? 4}
           required
           className="input mt-1"
         />

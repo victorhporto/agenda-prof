@@ -68,6 +68,8 @@ export async function createPackage(formData: FormData) {
 
   revalidatePath("/pacotes");
   revalidatePath("/faturamento");
+  revalidatePath("/alunos");
+  revalidatePath(`/alunos/${studentId}`);
   redirect(`/pacotes/${data.id}`);
 }
 
@@ -318,4 +320,46 @@ export async function reopenPackage(packageId: string) {
   revalidatePath("/agenda");
   revalidatePath(`/pacotes/${packageId}`);
   return { success: true as const };
+}
+
+export async function duplicatePackage(sourcePackageId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  const { data: source, error: sourceError } = await supabase
+    .from("lesson_packages")
+    .select("id, student_id, title, total_lessons, price")
+    .eq("id", sourcePackageId)
+    .eq("teacher_id", user.id)
+    .single();
+
+  if (sourceError || !source) return { error: "Pacote não encontrado" };
+
+  const { data, error } = await supabase
+    .from("lesson_packages")
+    .insert({
+      teacher_id: user.id,
+      student_id: source.student_id,
+      title: source.title,
+      total_lessons: source.total_lessons,
+      price: source.price,
+      status: "active",
+      payment_status: "pending",
+      amount_paid: 0,
+      paid_at: null,
+      payment_due_date: null,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) return { error: error?.message ?? "Erro ao repetir pacote" };
+
+  revalidatePath("/pacotes");
+  revalidatePath("/faturamento");
+  revalidatePath("/inicio");
+  revalidatePath(`/alunos/${source.student_id}`);
+  redirect(`/pacotes/${data.id}`);
 }

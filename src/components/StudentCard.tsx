@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateStudent } from "@/lib/students/actions";
@@ -87,7 +88,10 @@ export function StudentCard({ student }: { student: Student }) {
 
   return (
     <li className="panel flex items-start justify-between gap-3 p-4">
-      <div>
+      <Link
+        href={`/alunos/${student.id}`}
+        className="min-w-0 flex-1 transition hover:opacity-80"
+      >
         <p className="font-semibold">{student.name}</p>
         {student.phone && (
           <p className="text-sm text-[var(--ink-muted)]">{student.phone}</p>
@@ -95,8 +99,8 @@ export function StudentCard({ student }: { student: Student }) {
         {student.notes && (
           <p className="mt-1 text-sm text-[var(--ink-muted)]">{student.notes}</p>
         )}
-      </div>
-      <div className="flex flex-col items-end gap-2">
+      </Link>
+      <div className="flex shrink-0 flex-col items-end gap-2">
         <button
           type="button"
           className="text-sm font-medium text-[var(--accent)] hover:underline"

@@ -7,6 +7,7 @@ import { ClosePackageButton } from "@/components/ClosePackageButton";
 import { EditPackagePanel } from "@/components/EditPackagePanel";
 import { PaymentPanel } from "@/components/PaymentPanel";
 import { ReopenPackageButton } from "@/components/ReopenPackageButton";
+import { RepeatPackageButton } from "@/components/RepeatPackageButton";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -51,6 +52,14 @@ export default async function PacoteDetailPage({ params }: Props) {
         >
           ← Pacotes
         </Link>
+        <p className="mt-1">
+          <Link
+            href={`/alunos/${pkg.student_id}`}
+            className="text-sm text-[var(--ink-muted)] hover:text-[var(--accent)]"
+          >
+            Ver todos os pacotes de {student?.name}
+          </Link>
+        </p>
         <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-display text-3xl font-bold tracking-tight">
@@ -77,7 +86,10 @@ export default async function PacoteDetailPage({ params }: Props) {
               />
             )}
             {pkg.status === "closed" && (
-              <ReopenPackageButton packageId={pkg.id} />
+              <>
+                <RepeatPackageButton packageId={pkg.id} />
+                <ReopenPackageButton packageId={pkg.id} />
+              </>
             )}
           </div>
         </div>
