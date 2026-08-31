@@ -46,7 +46,9 @@ Para testar sem e-mail: Authentication → Providers → Email → desative **Co
 
 Em **Assistente**, informe disponibilidade do aluno e a sua. O sistema lê as aulas `scheduled` da semana atual (Brasília) e a OpenAI sugere um encaixe. Nada é gravado na agenda — você aplica depois em **Nova aula**.
 
-Ao agendar, escolha o local (casa do aluno, casa do professor ou online). Aulas na casa do aluno consideram 1h de locomoção antes e depois na sugestão do assistente. Aulas sem local cadastrado entram na grade só com 1h.
+Ao agendar, o local vem do cadastro do aluno e pode ser alterado só nesta aula. Aulas na casa do aluno consideram 1h de locomoção antes e depois na sugestão do assistente. Se a aula não tiver local, vale o padrão do aluno; se nenhum dos dois existir, entra na grade só com 1h.
+
+O horário do professor fica no **Perfil** (padrão: segunda a sexta, 10h–20h, até você salvar o seu). O Assistente usa esse horário automaticamente.
 
 ## Regra de saldo
 

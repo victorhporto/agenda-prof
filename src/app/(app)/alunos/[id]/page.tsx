@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { PackageListItem } from "@/components/PackageListItem";
 import { ScrollToActivePackage } from "@/components/ScrollToActivePackage";
 import { getPackageProgress } from "@/lib/package-progress";
-import { createClient } from "@/lib/supabase/server";
+import { LOCATION_SHORT, parseStoredLocation } from "@/lib/lessons/location";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -36,6 +36,7 @@ export default async function AlunoDetailPage({ params }: Props) {
   const activePackages = packages.filter((p) => p.status === "active");
   const historyPackages = packages.filter((p) => p.status !== "active");
   const focusActiveId = activePackages[0]?.id ?? null;
+  const defaultLocation = parseStoredLocation(student.default_location);
 
   return (
     <div className="space-y-6">
@@ -55,6 +56,11 @@ export default async function AlunoDetailPage({ params }: Props) {
             </h1>
             {student.phone && (
               <p className="mt-1 text-[var(--ink-muted)]">{student.phone}</p>
+            )}
+            {defaultLocation && (
+              <p className="mt-1 text-[var(--ink-muted)]">
+                {LOCATION_SHORT[defaultLocation]}
+              </p>
             )}
             {student.notes && (
               <p className="mt-2 text-sm text-[var(--ink-muted)]">

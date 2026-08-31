@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { LessonForm } from "@/components/LessonForm";
 import { getPackageProgress } from "@/lib/package-progress";
+import { parseStoredLocation } from "@/lib/lessons/location";
 
 type Props = { searchParams: Promise<{ package?: string }> };
 
@@ -17,7 +18,7 @@ export default async function NovaAulaPage({ searchParams }: Props) {
       title,
       total_lessons,
       status,
-      students ( name ),
+      students ( name, default_location ),
       lessons ( status )
     `,
     )
@@ -28,7 +29,10 @@ export default async function NovaAulaPage({ searchParams }: Props) {
     packages
       ?.map((pkg) => {
         const progress = getPackageProgress(pkg, pkg.lessons ?? []);
-        const student = pkg.students as { name: string } | null;
+        const student = pkg.students as {
+          name: string;
+          default_location: string | null;
+        } | null;
         return {
           id: pkg.id,
           title: pkg.title,
@@ -37,6 +41,7 @@ export default async function NovaAulaPage({ searchParams }: Props) {
             pkg.total_lessons - progress.completed - progress.scheduled,
             0,
           ),
+          defaultLocation: parseStoredLocation(student?.default_location),
         };
       })
       .filter((p) => p.remainingSlots > 0) ?? [];

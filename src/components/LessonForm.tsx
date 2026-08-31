@@ -11,6 +11,7 @@ type PackageOption = {
   title: string;
   studentName: string;
   remainingSlots: number;
+  defaultLocation: LessonLocation | null;
 };
 
 type Recurrence = "once" | "weekly" | "biweekly";
@@ -26,7 +27,10 @@ export function LessonForm({
   const [error, setError] = useState<string | null>(null);
   const [packageId, setPackageId] = useState(defaultPackageId ?? "");
   const [recurrence, setRecurrence] = useState<Recurrence>("once");
-  const [location, setLocation] = useState<LessonLocation>("online");
+  const initialLocation =
+    packages.find((p) => p.id === (defaultPackageId ?? ""))?.defaultLocation ??
+    "online";
+  const [location, setLocation] = useState<LessonLocation>(initialLocation);
   const defaultDate = (() => {
     const d = new Date();
     d.setMinutes(0, 0, 0);
@@ -73,7 +77,12 @@ export function LessonForm({
           name="package_id"
           required
           value={packageId}
-          onChange={(e) => setPackageId(e.target.value)}
+          onChange={(e) => {
+            const nextId = e.target.value;
+            setPackageId(nextId);
+            const next = packages.find((p) => p.id === nextId);
+            setLocation(next?.defaultLocation ?? "online");
+          }}
           className="input mt-1"
         >
           <option value="">Selecione...</option>
@@ -96,7 +105,11 @@ export function LessonForm({
         />
       </label>
 
-      <LocationRadios value={location} onChange={setLocation} />
+      <LocationRadios
+        value={location}
+        onChange={setLocation}
+        legend="Local desta aula"
+      />
 
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium text-[var(--ink-muted)]">

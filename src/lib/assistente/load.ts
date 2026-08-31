@@ -29,7 +29,7 @@ export async function loadWeekOccupiedBlocks(
       location,
       lesson_packages (
         title,
-        students ( name )
+        students ( name, default_location )
       )
     `,
     )

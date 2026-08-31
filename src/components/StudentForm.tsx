@@ -3,12 +3,15 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createStudent } from "@/lib/students/actions";
+import { LocationRadios } from "@/components/LocationRadios";
+import type { LessonLocation } from "@/lib/lessons/location";
 
 export function StudentForm() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [location, setLocation] = useState<LessonLocation>("online");
 
   function onSubmit(formData: FormData) {
     setError(null);
@@ -41,6 +44,12 @@ export function StudentForm() {
         WhatsApp (DDD + número)
         <input name="phone" className="input mt-1" placeholder="11999999999" />
       </label>
+      <LocationRadios
+        name="default_location"
+        legend="Local padrão das aulas"
+        value={location}
+        onChange={setLocation}
+      />
       <label className="block text-sm font-medium text-[var(--ink-muted)]">
         Observações
         <textarea name="notes" rows={2} className="input mt-1" />

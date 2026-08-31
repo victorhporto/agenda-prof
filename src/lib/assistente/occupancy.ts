@@ -4,7 +4,7 @@ import { APP_TIMEZONE, formatInSaoPaulo } from "@/lib/timezone";
 import {
   LOCATION_SHORT,
   isLessonLocation,
-  parseStoredLocation,
+  effectiveLocation,
   type LessonLocation,
 } from "@/lib/lessons/location";
 
@@ -41,6 +41,8 @@ export const WEEKDAY_SHORT: Record<Weekday, string> = {
   6: "Sáb",
   7: "Dom",
 };
+
+export const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 export type StudentSlot = {
   weekday: Weekday;
@@ -87,7 +89,10 @@ export type ScheduledLessonRow = {
   location?: string | null;
   lesson_packages: {
     title: string;
-    students: { name: string } | null;
+    students: {
+      name: string;
+      default_location?: string | null;
+    } | null;
   } | null;
 };
 
@@ -224,9 +229,12 @@ export function buildOccupiedBlocks(
       if (startMinutes == null) return null;
       const weekday = isoWeekdayFromIso(lesson.scheduled_at);
       if (!weekday) return null;
-      const location = parseStoredLocation(lesson.location);
-      const occupies = occupiesRange(startMinutes, location);
       const pkg = lesson.lesson_packages;
+      const location = effectiveLocation(
+        lesson.location,
+        pkg?.students?.default_location,
+      );
+      const occupies = occupiesRange(startMinutes, location);
       return {
         weekday,
         start: minutesToTime(startMinutes),
@@ -302,6 +310,89 @@ function parseWeekday(value: unknown): Weekday | null {
   return n;
 }
 
+export function parseTeacherWindows(
+  raw: unknown,
+): { ok: true; value: TeacherWindow[] } | { ok: false; error: string } {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return { ok: false, error: "Informe a disponibilidade do professor" };
+  }
+  if (raw.length > 21) {
+    return { ok: false, error: "Muitos intervalos do professor" };
+  }
+
+  const teacherWindows: TeacherWindow[] = [];
+  for (const window of raw) {
+    if (!window || typeof window !== "object") {
+      return { ok: false, error: "Horário do professor inválido" };
+    }
+    const item = window as Record<string, unknown>;
+    const weekday = parseWeekday(item.weekday);
+    const start =
+      typeof item.start === "string" ? normalizeTime(item.start) : null;
+    const end = typeof item.end === "string" ? normalizeTime(item.end) : null;
+    if (!weekday || !start || !end) {
+      return {
+        ok: false,
+        error: "Cada intervalo do professor precisa de dia, início e fim",
+      };
+    }
+    const startMin = parseTimeToMinutes(start);
+    const endMin = parseTimeToMinutes(end);
+    if (startMin == null || endMin == null || endMin <= startMin) {
+      return {
+        ok: false,
+        error: "O fim do horário do professor deve ser depois do início",
+      };
+    }
+    teacherWindows.push({ weekday, start, end });
+  }
+
+  return { ok: true, value: teacherWindows };
+}
+
+export function teacherWindowsFromStored(raw: unknown): TeacherWindow[] {
+  const parsed = parseTeacherWindows(raw);
+  return parsed.ok ? parsed.value : defaultTeacherWindows();
+}
+
+function compactClock(time: string): string {
+  return time.endsWith(":00") ? `${time.slice(0, 2)}h` : time;
+}
+
+function formatDaySpan(days: Weekday[]): string {
+  const unique = [...new Set(days)].sort((a, b) => a - b);
+  if (unique.length === 1) return WEEKDAY_SHORT[unique[0]!];
+  const consecutive = unique.every(
+    (day, index) => index === 0 || day === unique[index - 1]! + 1,
+  );
+  if (consecutive && unique.length >= 3) {
+    return `${WEEKDAY_SHORT[unique[0]!]}–${WEEKDAY_SHORT[unique[unique.length - 1]!]}`;
+  }
+  return unique.map((day) => WEEKDAY_SHORT[day]).join(", ");
+}
+
+export function summarizeTeacherWindows(windows: TeacherWindow[]): string {
+  if (windows.length === 0) return "Nenhum horário";
+
+  const groups = new Map<string, Weekday[]>();
+  const sorted = [...windows].sort(
+    (a, b) => a.weekday - b.weekday || a.start.localeCompare(b.start),
+  );
+  for (const window of sorted) {
+    const key = `${window.start}-${window.end}`;
+    const days = groups.get(key) ?? [];
+    days.push(window.weekday);
+    groups.set(key, days);
+  }
+
+  return [...groups.entries()]
+    .map(([range, days]) => {
+      const [start, end] = range.split("-");
+      return `${formatDaySpan(days)} ${compactClock(start!)}–${compactClock(end!)}`;
+    })
+    .join(" · ");
+}
+
 export function parseAssistenteFormInput(
   raw: unknown,
 ): { ok: true; value: AssistenteFormInput } | { ok: false; error: string } {
@@ -349,39 +440,8 @@ export function parseAssistenteFormInput(
     studentSlots.push({ weekday, time });
   }
 
-  if (!Array.isArray(data.teacherWindows) || data.teacherWindows.length === 0) {
-    return { ok: false, error: "Informe a disponibilidade do professor" };
-  }
-  if (data.teacherWindows.length > 21) {
-    return { ok: false, error: "Muitos intervalos do professor" };
-  }
-
-  const teacherWindows: TeacherWindow[] = [];
-  for (const window of data.teacherWindows) {
-    if (!window || typeof window !== "object") {
-      return { ok: false, error: "Horário do professor inválido" };
-    }
-    const item = window as Record<string, unknown>;
-    const weekday = parseWeekday(item.weekday);
-    const start =
-      typeof item.start === "string" ? normalizeTime(item.start) : null;
-    const end = typeof item.end === "string" ? normalizeTime(item.end) : null;
-    if (!weekday || !start || !end) {
-      return {
-        ok: false,
-        error: "Cada intervalo do professor precisa de dia, início e fim",
-      };
-    }
-    const startMin = parseTimeToMinutes(start);
-    const endMin = parseTimeToMinutes(end);
-    if (startMin == null || endMin == null || endMin <= startMin) {
-      return {
-        ok: false,
-        error: "O fim do horário do professor deve ser depois do início",
-      };
-    }
-    teacherWindows.push({ weekday, start, end });
-  }
+  const windows = parseTeacherWindows(data.teacherWindows);
+  if (!windows.ok) return windows;
 
   return {
     ok: true,
@@ -390,7 +450,7 @@ export function parseAssistenteFormInput(
       lessonsPerWeek,
       location,
       studentSlots,
-      teacherWindows,
+      teacherWindows: windows.value,
     },
   };
 }

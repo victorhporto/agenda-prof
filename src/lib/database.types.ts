@@ -200,6 +200,7 @@ export type Database = {
           msg_signature: string | null;
           msg_signature_enabled: boolean;
           notify_email: boolean;
+          teacher_windows: Json | null;
         };
         Insert: {
           created_at?: string;
@@ -213,6 +214,7 @@ export type Database = {
           msg_signature?: string | null;
           msg_signature_enabled?: boolean;
           notify_email?: boolean;
+          teacher_windows?: Json | null;
         };
         Update: {
           created_at?: string;
@@ -226,6 +228,7 @@ export type Database = {
           msg_signature?: string | null;
           msg_signature_enabled?: boolean;
           notify_email?: boolean;
+          teacher_windows?: Json | null;
         };
         Relationships: [];
       };
@@ -236,6 +239,7 @@ export type Database = {
           name: string;
           notes: string | null;
           phone: string | null;
+          default_location: string | null;
           teacher_id: string;
         };
         Insert: {
@@ -244,6 +248,7 @@ export type Database = {
           name: string;
           notes?: string | null;
           phone?: string | null;
+          default_location?: string | null;
           teacher_id: string;
         };
         Update: {
@@ -252,6 +257,7 @@ export type Database = {
           name?: string;
           notes?: string | null;
           phone?: string | null;
+          default_location?: string | null;
           teacher_id?: string;
         };
         Relationships: [

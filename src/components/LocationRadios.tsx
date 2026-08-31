@@ -10,15 +10,17 @@ export function LocationRadios({
   value,
   onChange,
   name = "location",
+  legend = "Local da aula",
 }: {
   value: LessonLocation;
   onChange?: (value: LessonLocation) => void;
   name?: string;
+  legend?: string;
 }) {
   return (
     <fieldset className="space-y-2">
       <legend className="text-sm font-medium text-[var(--ink-muted)]">
-        Local da aula
+        {legend}
       </legend>
       {LOCATIONS.map((option) => (
         <label

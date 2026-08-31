@@ -7,7 +7,10 @@ import {
   formatWeekLabel,
   occupiesRange,
   parseAssistenteFormInput,
+  parseTeacherWindows,
   parseTimeToMinutes,
+  summarizeTeacherWindows,
+  teacherWindowsFromStored,
   type OccupiedBlock,
 } from "@/lib/assistente/occupancy";
 
@@ -96,6 +99,28 @@ describe("buildOccupiedBlocks", () => {
         weekday: 2,
         start: "14:00",
         end: "15:00",
+        occupiesStart: "13:00",
+        occupiesEnd: "16:00",
+        location: "casa_aluno",
+      }),
+    ]);
+  });
+
+  it("usa o local padrão do aluno quando a aula não tem local", () => {
+    const blocks = buildOccupiedBlocks([
+      {
+        id: "lesson-3",
+        scheduled_at: "2026-07-14T17:00:00.000Z",
+        location: null,
+        lesson_packages: {
+          title: "Pacote 4",
+          students: { name: "Ana", default_location: "casa_aluno" },
+        },
+      },
+    ]);
+
+    expect(blocks).toEqual([
+      expect.objectContaining({
         occupiesStart: "13:00",
         occupiesEnd: "16:00",
         location: "casa_aluno",
@@ -276,5 +301,35 @@ describe("parseAssistenteFormInput", () => {
         teacherWindows: defaultTeacherWindows(),
       }).ok,
     ).toBe(false);
+  });
+});
+
+describe("parseTeacherWindows", () => {
+  it("normaliza e rejeita intervalo invertido", () => {
+    const ok = parseTeacherWindows([{ weekday: "2", start: "09:00:00", end: "12:00" }]);
+    expect(ok).toEqual({
+      ok: true,
+      value: [{ weekday: 2, start: "09:00", end: "12:00" }],
+    });
+
+    expect(parseTeacherWindows([{ weekday: 1, start: "18:00", end: "10:00" }]).ok).toBe(
+      false,
+    );
+    expect(parseTeacherWindows(null).ok).toBe(false);
+  });
+});
+
+describe("teacherWindowsFromStored", () => {
+  it("cai no padrão seg–sex 10h–20h quando não há valor salvo", () => {
+    expect(teacherWindowsFromStored(null)).toEqual(defaultTeacherWindows());
+    expect(teacherWindowsFromStored([])).toEqual(defaultTeacherWindows());
+  });
+});
+
+describe("summarizeTeacherWindows", () => {
+  it("agrupa o padrão em Seg–Sex 10h–20h", () => {
+    expect(summarizeTeacherWindows(defaultTeacherWindows())).toBe(
+      "Seg–Sex 10h–20h",
+    );
   });
 });

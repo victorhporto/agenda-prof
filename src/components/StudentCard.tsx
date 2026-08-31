@@ -5,12 +5,19 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateStudent } from "@/lib/students/actions";
 import { DeleteStudentButton } from "@/components/DeleteStudentButton";
+import { LocationRadios } from "@/components/LocationRadios";
+import {
+  LOCATION_SHORT,
+  parseStoredLocation,
+  type LessonLocation,
+} from "@/lib/lessons/location";
 
 type Student = {
   id: string;
   name: string;
   phone: string | null;
   notes: string | null;
+  default_location: string | null;
 };
 
 export function StudentCard({ student }: { student: Student }) {
@@ -18,6 +25,10 @@ export function StudentCard({ student }: { student: Student }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [location, setLocation] = useState<LessonLocation>(
+    () => parseStoredLocation(student.default_location) ?? "online",
+  );
+  const defaultLabel = parseStoredLocation(student.default_location);
 
   function onSubmit(formData: FormData) {
     setError(null);
@@ -55,6 +66,12 @@ export function StudentCard({ student }: { student: Student }) {
               placeholder="11999999999"
             />
           </label>
+          <LocationRadios
+            name="default_location"
+            legend="Local padrão das aulas"
+            value={location}
+            onChange={setLocation}
+          />
           <label className="block text-sm font-medium text-[var(--ink-muted)]">
             Observações
             <textarea
@@ -96,6 +113,11 @@ export function StudentCard({ student }: { student: Student }) {
         {student.phone && (
           <p className="text-sm text-[var(--ink-muted)]">{student.phone}</p>
         )}
+        {defaultLabel && (
+          <p className="text-sm text-[var(--ink-muted)]">
+            {LOCATION_SHORT[defaultLabel]}
+          </p>
+        )}
         {student.notes && (
           <p className="mt-1 text-sm text-[var(--ink-muted)]">{student.notes}</p>
         )}
@@ -104,7 +126,10 @@ export function StudentCard({ student }: { student: Student }) {
         <button
           type="button"
           className="text-sm font-medium text-[var(--accent)] hover:underline"
-          onClick={() => setEditing(true)}
+          onClick={() => {
+            setLocation(parseStoredLocation(student.default_location) ?? "online");
+            setEditing(true);
+          }}
         >
           Editar
         </button>

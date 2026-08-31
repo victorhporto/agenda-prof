@@ -32,3 +32,11 @@ export function parseStoredLocation(
 export function parseRequiredLocation(value: unknown): LessonLocation | null {
   return typeof value === "string" && isLessonLocation(value) ? value : null;
 }
+
+/** Local da aula, ou o padrão do aluno se a aula ainda não tiver local. */
+export function effectiveLocation(
+  lessonLocation: string | null | undefined,
+  studentDefault: string | null | undefined,
+): LessonLocation | null {
+  return parseStoredLocation(lessonLocation) ?? parseStoredLocation(studentDefault);
+}

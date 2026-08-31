@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import {
   previewAssistenteContext,
@@ -8,9 +9,10 @@ import {
 import {
   LOCATION_LABELS,
   WEEKDAY_LABELS,
-  defaultTeacherWindows,
+  WEEKDAYS,
   formatOccupiedLabel,
   parseAssistenteFormInput,
+  summarizeTeacherWindows,
   type AssistenteFormInput,
   type StudentSlot,
   type TeacherWindow,
@@ -19,11 +21,13 @@ import {
 import { LocationRadios } from "@/components/LocationRadios";
 import type { LessonLocation } from "@/lib/lessons/location";
 
-type StudentOption = { id: string; name: string };
+type StudentOption = {
+  id: string;
+  name: string;
+  defaultLocation: LessonLocation | null;
+};
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
-
-const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 const FIRST_USER_MESSAGE =
   "Analise a grade e sugira o melhor encaixe para este aluno. Não altere a agenda — só sugira.";
@@ -34,8 +38,10 @@ function emptyStudentSlot(): StudentSlot {
 
 export function AssistenteClient({
   students,
+  initialTeacherWindows,
 }: {
   students: StudentOption[];
+  initialTeacherWindows: TeacherWindow[];
 }) {
   const [step, setStep] = useState<"form" | "chat">("form");
   const [studentName, setStudentName] = useState("");
@@ -44,9 +50,7 @@ export function AssistenteClient({
   const [studentSlots, setStudentSlots] = useState<StudentSlot[]>([
     emptyStudentSlot(),
   ]);
-  const [teacherWindows, setTeacherWindows] = useState<TeacherWindow[]>(
-    () => defaultTeacherWindows(),
-  );
+  const teacherWindows = initialTeacherWindows;
   const [preview, setPreview] = useState<AssistentePreview | null>(null);
   const [formSnapshot, setFormSnapshot] = useState<AssistenteFormInput | null>(
     null,
@@ -111,14 +115,6 @@ export function AssistenteClient({
     setStudentSlots((current) =>
       current.map((slot, itemIndex) =>
         itemIndex === index ? { ...slot, ...patch } : slot,
-      ),
-    );
-  }
-
-  function updateTeacherWindow(index: number, patch: Partial<TeacherWindow>) {
-    setTeacherWindows((current) =>
-      current.map((window, itemIndex) =>
-        itemIndex === index ? { ...window, ...patch } : window,
       ),
     );
   }
@@ -304,7 +300,12 @@ export function AssistenteClient({
         <input
           list="assistente-alunos"
           value={studentName}
-          onChange={(event) => setStudentName(event.target.value)}
+          onChange={(event) => {
+            const name = event.target.value;
+            setStudentName(name);
+            const match = students.find((student) => student.name === name);
+            if (match?.defaultLocation) setLocation(match.defaultLocation);
+          }}
           placeholder="Ex.: Carla"
           className="input mt-1"
           required
@@ -390,76 +391,20 @@ export function AssistenteClient({
         </button>
       </fieldset>
 
-      <fieldset className="space-y-3">
-        <legend className="text-sm font-medium text-[var(--ink-muted)]">
-          Horário disponível do professor
-        </legend>
-        <p className="text-sm text-[var(--ink-muted)]">
-          Padrão: segunda a sexta, das 10h às 20h. Edite se precisar.
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)] p-4">
+        <p className="text-sm font-medium text-[var(--ink)]">Seu horário</p>
+        <p className="mt-1 text-sm text-[var(--ink-muted)]">
+          {summarizeTeacherWindows(teacherWindows)}
         </p>
-        {teacherWindows.map((window, index) => (
-          <div key={index} className="flex flex-col gap-2 sm:flex-row">
-            <select
-              value={window.weekday}
-              onChange={(event) =>
-                updateTeacherWindow(index, {
-                  weekday: Number(event.target.value) as Weekday,
-                })
-              }
-              className="input"
-            >
-              {WEEKDAYS.map((day) => (
-                <option key={day} value={day}>
-                  {WEEKDAY_LABELS[day]}
-                </option>
-              ))}
-            </select>
-            <input
-              type="time"
-              value={window.start}
-              onChange={(event) =>
-                updateTeacherWindow(index, { start: event.target.value })
-              }
-              className="input"
-              required
-            />
-            <input
-              type="time"
-              value={window.end}
-              onChange={(event) =>
-                updateTeacherWindow(index, { end: event.target.value })
-              }
-              className="input"
-              required
-            />
-            {teacherWindows.length > 1 ? (
-              <button
-                type="button"
-                className="btn-secondary shrink-0 px-3"
-                onClick={() =>
-                  setTeacherWindows((current) =>
-                    current.filter((_, itemIndex) => itemIndex !== index),
-                  )
-                }
-              >
-                Remover
-              </button>
-            ) : null}
-          </div>
-        ))}
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() =>
-            setTeacherWindows((current) => [
-              ...current,
-              { weekday: 6, start: "10:00", end: "20:00" },
-            ])
-          }
-        >
-          Adicionar intervalo
-        </button>
-      </fieldset>
+        <p className="mt-2 text-sm">
+          <Link
+            href="/perfil"
+            className="font-medium text-[var(--accent)] hover:underline"
+          >
+            Editar no perfil →
+          </Link>
+        </p>
+      </div>
 
       {error && <p className="form-error">{error}</p>}
 

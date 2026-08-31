@@ -14,7 +14,7 @@ import {
 import { formatShortDate, statusLabel } from "@/lib/utils";
 import {
   LOCATION_LABELS,
-  parseStoredLocation,
+  effectiveLocation,
 } from "@/lib/lessons/location";
 
 type Props = {
@@ -39,7 +39,7 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
         id,
         title,
         total_lessons,
-        students ( name, phone )
+        students ( name, phone, default_location )
       )
     `,
     )
@@ -60,7 +60,11 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
     id: string;
     title: string;
     total_lessons: number;
-    students: { name: string; phone: string | null } | null;
+    students: {
+      name: string;
+      phone: string | null;
+      default_location: string | null;
+    } | null;
   } | null;
 
   const studentName = pkg?.students?.name ?? "aluno";
@@ -68,7 +72,10 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
     enabled: profile?.msg_signature_enabled ?? false,
     text: profile?.msg_signature ?? null,
   };
-  const lessonLocation = parseStoredLocation(lesson.location);
+  const lessonLocation = effectiveLocation(
+    lesson.location,
+    pkg?.students?.default_location,
+  );
 
   let storedMessage: string | null = null;
   let renewalMessage: string | null = null;
@@ -196,7 +203,7 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
         status={lesson.status}
         scheduledAt={lesson.scheduled_at}
         notes={lesson.notes}
-        location={lesson.location}
+        location={lessonLocation}
       />
 
       <LessonActions

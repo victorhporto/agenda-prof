@@ -11,6 +11,7 @@ import {
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { createClient } from "@/lib/supabase/server";
 import { AgendaLessonRow } from "@/components/AgendaLessonRow";
+import { effectiveLocation } from "@/lib/lessons/location";
 import {
   APP_TIMEZONE,
   formatInSaoPaulo,
@@ -36,7 +37,7 @@ type LessonRow = {
   lesson_packages: {
     title: string;
     total_lessons: number;
-    students: { name: string } | null;
+    students: { name: string; default_location: string | null } | null;
   } | null;
 };
 
@@ -165,7 +166,7 @@ export default async function AgendaPage({
       lesson_packages (
         title,
         total_lessons,
-        students ( name )
+        students ( name, default_location )
       )
     `,
     )
@@ -329,7 +330,10 @@ export default async function AgendaPage({
                 packageTitle={pkg?.title ?? null}
                 totalLessons={pkg?.total_lessons ?? null}
                 studentName={pkg?.students?.name ?? "Aluno"}
-                location={lesson.location}
+                location={effectiveLocation(
+                  lesson.location,
+                  pkg?.students?.default_location,
+                )}
               />
             );
           })}

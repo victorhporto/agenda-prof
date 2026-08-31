@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { parseRequiredLocation } from "@/lib/lessons/location";
 
 export async function createStudent(formData: FormData) {
   const supabase = await createClient();
@@ -13,19 +14,23 @@ export async function createStudent(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
+  const defaultLocation = parseRequiredLocation(formData.get("default_location"));
 
   if (!name) return { error: "Nome é obrigatório" };
+  if (!defaultLocation) return { error: "Selecione o local padrão das aulas" };
 
   const { error } = await supabase.from("students").insert({
     teacher_id: user.id,
     name,
     phone,
     notes,
+    default_location: defaultLocation,
   });
 
   if (error) return { error: error.message };
 
   revalidatePath("/alunos");
+  revalidatePath("/assistente");
   return { success: true };
 }
 
@@ -40,13 +45,15 @@ export async function updateStudent(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
+  const defaultLocation = parseRequiredLocation(formData.get("default_location"));
 
   if (!id) return { error: "Aluno inválido" };
   if (!name) return { error: "Nome é obrigatório" };
+  if (!defaultLocation) return { error: "Selecione o local padrão das aulas" };
 
   const { error } = await supabase
     .from("students")
-    .update({ name, phone, notes })
+    .update({ name, phone, notes, default_location: defaultLocation })
     .eq("id", id)
     .eq("teacher_id", user.id);
 
@@ -55,6 +62,7 @@ export async function updateStudent(formData: FormData) {
   revalidatePath("/alunos");
   revalidatePath("/pacotes");
   revalidatePath("/agenda");
+  revalidatePath("/assistente");
   return { success: true };
 }
 

@@ -13,6 +13,7 @@ type IconName =
   | "finance"
   | "message"
   | "assistant"
+  | "profile"
   | "more"
   | "logout";
 
@@ -24,6 +25,7 @@ const desktopLinks = [
   { href: "/pacotes", label: "Pacotes" },
   { href: "/faturamento", label: "Faturamento" },
   { href: "/mensagens", label: "Mensagens" },
+  { href: "/perfil", label: "Perfil" },
 ];
 
 const mobileLinks: { href: string; label: string; icon: IconName }[] = [
@@ -91,6 +93,12 @@ function NavIcon({ name }: { name: IconName }) {
         <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
         <circle cx="12" cy="12" r="4" />
         <path d="M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" />
+      </>
+    ),
+    profile: (
+      <>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6" />
       </>
     ),
     more: (
@@ -213,7 +221,8 @@ export function AppNav() {
     pathname.startsWith("/pacotes") ||
     pathname.startsWith("/faturamento") ||
     pathname.startsWith("/mensagens") ||
-    pathname.startsWith("/assistente");
+    pathname.startsWith("/assistente") ||
+    pathname.startsWith("/perfil");
 
   useEffect(() => {
     setMoreOpen(false);
@@ -296,6 +305,12 @@ export function AppNav() {
               icon="message"
               title="Mensagens"
               subtitle="Textos e assinatura"
+            />
+            <MoreMenuLink
+              href="/perfil"
+              icon="profile"
+              title="Perfil"
+              subtitle="Horário de atendimento"
             />
             <button
               type="button"

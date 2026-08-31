@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPackageProgress } from "@/lib/package-progress";
 import { formatLessonDate, formatMoney, statusLabel } from "@/lib/utils";
-import { LOCATION_SHORT, parseStoredLocation } from "@/lib/lessons/location";
+import { LOCATION_SHORT, effectiveLocation } from "@/lib/lessons/location";
 import { ClosePackageButton } from "@/components/ClosePackageButton";
 import { EditPackagePanel } from "@/components/EditPackagePanel";
 import { PaymentPanel } from "@/components/PaymentPanel";
@@ -21,7 +21,7 @@ export default async function PacoteDetailPage({ params }: Props) {
     .select(
       `
       *,
-      students ( name, phone ),
+      students ( name, phone, default_location ),
       lessons ( id, scheduled_at, status, sequence_number, location )
     `,
     )
@@ -42,7 +42,11 @@ export default async function PacoteDetailPage({ params }: Props) {
       new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime(),
   );
   const progress = getPackageProgress(pkg, lessons);
-  const student = pkg.students as { name: string; phone: string | null } | null;
+  const student = pkg.students as {
+    name: string;
+    phone: string | null;
+    default_location: string | null;
+  } | null;
 
   return (
     <div className="space-y-6">
@@ -173,7 +177,10 @@ export default async function PacoteDetailPage({ params }: Props) {
                       {formatLessonDate(lesson.scheduled_at)}
                     </p>
                     {(() => {
-                      const loc = parseStoredLocation(lesson.location);
+                      const loc = effectiveLocation(
+                        lesson.location,
+                        student?.default_location,
+                      );
                       const seq = lesson.sequence_number
                         ? `Aula ${lesson.sequence_number} de ${pkg.total_lessons}`
                         : null;
