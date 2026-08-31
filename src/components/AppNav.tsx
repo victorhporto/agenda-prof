@@ -12,12 +12,14 @@ type IconName =
   | "package"
   | "finance"
   | "message"
+  | "assistant"
   | "more"
   | "logout";
 
 const desktopLinks = [
   { href: "/inicio", label: "Início" },
   { href: "/agenda", label: "Agenda" },
+  { href: "/assistente", label: "Assistente" },
   { href: "/alunos", label: "Alunos" },
   { href: "/pacotes", label: "Pacotes" },
   { href: "/faturamento", label: "Faturamento" },
@@ -82,6 +84,13 @@ function NavIcon({ name }: { name: IconName }) {
       <>
         <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />
         <path d="M8 8h8M8 12h5" />
+      </>
+    ),
+    assistant: (
+      <>
+        <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+        <circle cx="12" cy="12" r="4" />
+        <path d="M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" />
       </>
     ),
     more: (
@@ -203,7 +212,8 @@ export function AppNav() {
   const moreActive =
     pathname.startsWith("/pacotes") ||
     pathname.startsWith("/faturamento") ||
-    pathname.startsWith("/mensagens");
+    pathname.startsWith("/mensagens") ||
+    pathname.startsWith("/assistente");
 
   useEffect(() => {
     setMoreOpen(false);
@@ -263,6 +273,12 @@ export function AppNav() {
             <p className="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
               Mais opções
             </p>
+            <MoreMenuLink
+              href="/assistente"
+              icon="assistant"
+              title="Assistente"
+              subtitle="Encaixar aluno na grade"
+            />
             <MoreMenuLink
               href="/pacotes"
               icon="package"

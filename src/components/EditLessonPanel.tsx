@@ -5,12 +5,18 @@ import { useRouter } from "next/navigation";
 import { cancelLesson, updateLesson } from "@/lib/lessons/actions";
 import { formatShortDate } from "@/lib/utils";
 import { toSaoPauloInputValue } from "@/lib/timezone";
+import { LocationRadios } from "@/components/LocationRadios";
+import {
+  parseStoredLocation,
+  type LessonLocation,
+} from "@/lib/lessons/location";
 
 type Props = {
   lessonId: string;
   status: string;
   scheduledAt: string;
   notes: string | null;
+  location: string | null;
 };
 
 export function EditLessonPanel({
@@ -18,6 +24,7 @@ export function EditLessonPanel({
   status,
   scheduledAt,
   notes,
+  location,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -27,6 +34,9 @@ export function EditLessonPanel({
     toSaoPauloInputValue(scheduledAt),
   );
   const [notesValue, setNotesValue] = useState(notes ?? "");
+  const [locationValue, setLocationValue] = useState<LessonLocation>(
+    () => parseStoredLocation(location) ?? "online",
+  );
 
   if (status !== "scheduled") {
     return null;
@@ -102,6 +112,7 @@ export function EditLessonPanel({
               className="input mt-1"
             />
           </label>
+          <LocationRadios value={locationValue} onChange={setLocationValue} />
           <label className="block text-sm font-medium text-[var(--ink-muted)]">
             Observações
             <textarea

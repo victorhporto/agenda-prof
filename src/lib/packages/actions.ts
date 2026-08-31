@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { syncPackagePaymentTotals } from "@/lib/payments/actions";
 import { saoPauloInputToIso, todayYmdSaoPaulo } from "@/lib/timezone";
 import { findScheduleConflicts } from "@/lib/lessons/conflicts";
+import { parseRequiredLocation } from "@/lib/lessons/location";
 
 export async function createPackage(formData: FormData) {
   const supabase = await createClient();
@@ -84,9 +85,11 @@ export async function createLesson(formData: FormData) {
   const scheduledAt = String(formData.get("scheduled_at") ?? "");
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const recurrence = String(formData.get("recurrence") ?? "once");
+  const location = parseRequiredLocation(formData.get("location"));
 
   if (!packageId) return { error: "Pacote obrigatório" };
   if (!scheduledAt) return { error: "Data obrigatória" };
+  if (!location) return { error: "Selecione o local da aula" };
   if (recurrence !== "once" && recurrence !== "weekly" && recurrence !== "biweekly") {
     return { error: "Opção de repetição inválida" };
   }
@@ -135,6 +138,7 @@ export async function createLesson(formData: FormData) {
       scheduled_at: date.toISOString(),
       status: "scheduled" as const,
       notes,
+      location,
     };
   });
 

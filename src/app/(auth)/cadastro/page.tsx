@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthBrand } from "@/components/AuthBrand";
 import { createClient } from "@/lib/supabase/client";
+import { authMessage } from "@/lib/auth-messages";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -33,7 +34,15 @@ export default function SignupPage() {
     setLoading(false);
 
     if (authError) {
-      setError(authError.message);
+      setError(authMessage(authError.message));
+      return;
+    }
+
+    // E-mail já cadastrado: o Supabase devolve 200 sem identities e não troca a senha.
+    if ((data.user?.identities?.length ?? 0) === 0) {
+      setError(
+        "Este e-mail já tem conta. Entre com a senha original — cadastrar de novo não troca a senha.",
+      );
       return;
     }
 

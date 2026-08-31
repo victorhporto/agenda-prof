@@ -12,6 +12,10 @@ import {
   rescheduledLessonMessage,
 } from "@/lib/messages/templates";
 import { formatShortDate, statusLabel } from "@/lib/utils";
+import {
+  LOCATION_LABELS,
+  parseStoredLocation,
+} from "@/lib/lessons/location";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -64,6 +68,7 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
     enabled: profile?.msg_signature_enabled ?? false,
     text: profile?.msg_signature ?? null,
   };
+  const lessonLocation = parseStoredLocation(lesson.location);
 
   let storedMessage: string | null = null;
   let renewalMessage: string | null = null;
@@ -173,6 +178,12 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
             {pkg.students.phone}
           </p>
         )}
+        {lessonLocation && (
+          <p>
+            <span className="text-[var(--ink-muted)]">Local:</span>{" "}
+            {LOCATION_LABELS[lessonLocation]}
+          </p>
+        )}
         {lesson.notes && (
           <p>
             <span className="text-[var(--ink-muted)]">Obs:</span> {lesson.notes}
@@ -185,6 +196,7 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
         status={lesson.status}
         scheduledAt={lesson.scheduled_at}
         notes={lesson.notes}
+        location={lesson.location}
       />
 
       <LessonActions

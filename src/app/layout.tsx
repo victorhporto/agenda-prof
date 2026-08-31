@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
 import { RegisterSW } from "@/components/RegisterSW";
+import { RecoveryRedirect } from "@/components/RecoveryRedirect";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -58,6 +59,7 @@ export default function RootLayout({
     <html lang="pt-BR" className={`${dmSans.variable} ${fraunces.variable} h-full`}>
       <body className="min-h-full font-sans antialiased">
         {children}
+        <RecoveryRedirect />
         <RegisterSW />
       </body>
     </html>

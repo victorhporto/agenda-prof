@@ -3,6 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import { createLesson } from "@/lib/packages/actions";
 import { toSaoPauloInputValue } from "@/lib/timezone";
+import { LocationRadios } from "@/components/LocationRadios";
+import type { LessonLocation } from "@/lib/lessons/location";
 
 type PackageOption = {
   id: string;
@@ -24,6 +26,7 @@ export function LessonForm({
   const [error, setError] = useState<string | null>(null);
   const [packageId, setPackageId] = useState(defaultPackageId ?? "");
   const [recurrence, setRecurrence] = useState<Recurrence>("once");
+  const [location, setLocation] = useState<LessonLocation>("online");
   const defaultDate = (() => {
     const d = new Date();
     d.setMinutes(0, 0, 0);
@@ -92,6 +95,8 @@ export function LessonForm({
           className="input mt-1"
         />
       </label>
+
+      <LocationRadios value={location} onChange={setLocation} />
 
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium text-[var(--ink-muted)]">

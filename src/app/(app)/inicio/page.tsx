@@ -25,6 +25,7 @@ export default async function InicioPage() {
         scheduled_at,
         status,
         sequence_number,
+        location,
         lesson_packages (
           title,
           total_lessons,
@@ -110,9 +111,14 @@ export default async function InicioPage() {
           </h1>
           <p className="mt-1 capitalize text-[var(--ink-muted)]">{todayLabel}</p>
         </div>
-        <Link href="/aulas/nova" className="btn-primary">
-          Nova aula
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/assistente" className="btn-secondary">
+            Encaixar aluno
+          </Link>
+          <Link href="/aulas/nova" className="btn-primary">
+            Nova aula
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -183,6 +189,7 @@ export default async function InicioPage() {
                   packageTitle={pkg?.title ?? null}
                   totalLessons={pkg?.total_lessons ?? null}
                   studentName={pkg?.students?.name ?? "Aluno"}
+                  location={lesson.location}
                 />
               );
             })}

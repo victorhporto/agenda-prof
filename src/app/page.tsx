@@ -20,11 +20,8 @@ export default async function HomePage() {
         Controle pacotes, aulas dadas e remarcações — com mensagens prontas para
         enviar ao aluno.
       </h1>
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-        <Link href="/cadastro" className="btn-primary">
-          Criar conta
-        </Link>
-        <Link href="/login" className="btn-secondary">
+      <div className="mt-8">
+        <Link href="/login" className="btn-primary">
           Entrar
         </Link>
       </div>

@@ -5,6 +5,7 @@ import { useState, useTransition, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import { completeLesson } from "@/lib/lessons/actions";
 import { formatLessonDate, statusLabel } from "@/lib/utils";
+import { LOCATION_SHORT, parseStoredLocation } from "@/lib/lessons/location";
 
 type Props = {
   lessonId: string;
@@ -14,6 +15,7 @@ type Props = {
   packageTitle: string | null;
   totalLessons: number | null;
   studentName: string;
+  location?: string | null;
 };
 
 export function AgendaLessonRow({
@@ -24,6 +26,7 @@ export function AgendaLessonRow({
   packageTitle,
   totalLessons,
   studentName,
+  location,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -46,6 +49,7 @@ export function AgendaLessonRow({
   }
 
   const displayStatus = done ? "completed" : status;
+  const locationLabel = parseStoredLocation(location);
 
   return (
     <li className="panel p-4">
@@ -63,6 +67,7 @@ export function AgendaLessonRow({
             {sequenceNumber
               ? ` · Aula ${sequenceNumber}/${totalLessons}`
               : ""}
+            {locationLabel ? ` · ${LOCATION_SHORT[locationLabel]}` : ""}
           </p>
         </Link>
         <span className={`badge badge-${displayStatus} shrink-0`}>

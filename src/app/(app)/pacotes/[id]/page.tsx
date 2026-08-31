@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPackageProgress } from "@/lib/package-progress";
 import { formatLessonDate, formatMoney, statusLabel } from "@/lib/utils";
+import { LOCATION_SHORT, parseStoredLocation } from "@/lib/lessons/location";
 import { ClosePackageButton } from "@/components/ClosePackageButton";
 import { EditPackagePanel } from "@/components/EditPackagePanel";
 import { PaymentPanel } from "@/components/PaymentPanel";
@@ -21,7 +22,7 @@ export default async function PacoteDetailPage({ params }: Props) {
       `
       *,
       students ( name, phone ),
-      lessons ( id, scheduled_at, status, sequence_number )
+      lessons ( id, scheduled_at, status, sequence_number, location )
     `,
     )
     .eq("id", id)
@@ -171,11 +172,20 @@ export default async function PacoteDetailPage({ params }: Props) {
                     <p className="font-medium capitalize">
                       {formatLessonDate(lesson.scheduled_at)}
                     </p>
-                    {lesson.sequence_number && (
-                      <p className="text-sm text-[var(--ink-muted)]">
-                        Aula {lesson.sequence_number} de {pkg.total_lessons}
-                      </p>
-                    )}
+                    {(() => {
+                      const loc = parseStoredLocation(lesson.location);
+                      const seq = lesson.sequence_number
+                        ? `Aula ${lesson.sequence_number} de ${pkg.total_lessons}`
+                        : null;
+                      if (!seq && !loc) return null;
+                      return (
+                        <p className="text-sm text-[var(--ink-muted)]">
+                          {[seq, loc ? LOCATION_SHORT[loc] : null]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <span className={`badge badge-${lesson.status}`}>
                     {statusLabel(lesson.status)}

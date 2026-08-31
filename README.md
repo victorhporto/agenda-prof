@@ -13,14 +13,15 @@ Agenda para professores autônomos: pacotes de aulas, check-in pós-aula e remar
 ## Setup local
 
 1. Copie `.env.example` para `.env.local` e preencha as chaves do Supabase.
-2. Instale e rode:
+2. Para o assistente de grade, adicione `OPENAI_API_KEY` (opcional: `OPENAI_MODEL`, padrão `gpt-4o-mini`).
+3. Instale e rode:
 
 ```bash
 npm install
 npm run dev
 ```
 
-3. Abra [http://localhost:3000](http://localhost:3000).
+4. Abra [http://localhost:3000](http://localhost:3000).
 
 ## Auth no Supabase (importante)
 
@@ -28,6 +29,8 @@ No dashboard do projeto Supabase → Authentication → URL Configuration:
 
 - Site URL: `https://agendaprof-flame.vercel.app`
 - Redirect URLs: `https://agendaprof-flame.vercel.app/**` e `http://localhost:3000/**`
+
+Para redefinir senha (local): o redirect do e-mail deve ser `http://localhost:3000/auth/callback?next=/redefinir-senha`. No app: **Entrar → Esqueci a senha**.
 
 Para testar sem e-mail: Authentication → Providers → Email → desative **Confirm email**.
 
@@ -38,6 +41,12 @@ Para testar sem e-mail: Authentication → Providers → Email → desative **Co
 3. Agende as aulas
 4. No dia: **OK — aula dada** ou **Não foi dada** / **Remarcar**
 5. Copie a mensagem gerada para o WhatsApp
+
+## Assistente de grade
+
+Em **Assistente**, informe disponibilidade do aluno e a sua. O sistema lê as aulas `scheduled` da semana atual (Brasília) e a OpenAI sugere um encaixe. Nada é gravado na agenda — você aplica depois em **Nova aula**.
+
+Ao agendar, escolha o local (casa do aluno, casa do professor ou online). Aulas na casa do aluno consideram 1h de locomoção antes e depois na sugestão do assistente. Aulas sem local cadastrado entram na grade só com 1h.
 
 ## Regra de saldo
 

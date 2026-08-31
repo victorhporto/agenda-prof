@@ -10,6 +10,7 @@ import {
 } from "@/lib/messages/templates";
 import { saoPauloInputToIso } from "@/lib/timezone";
 import { findScheduleConflict } from "@/lib/lessons/conflicts";
+import { parseRequiredLocation } from "@/lib/lessons/location";
 import {
   canCancelLesson,
   canCompleteLesson,
@@ -389,6 +390,7 @@ export async function rescheduleLesson(
       scheduled_at: newIso,
       status: "scheduled",
       rescheduled_from_id: lessonId,
+      location: lesson.location,
     })
     .select()
     .single();
@@ -425,8 +427,10 @@ export async function updateLesson(formData: FormData) {
   const lessonId = String(formData.get("lesson_id") ?? "");
   const scheduledAtRaw = String(formData.get("scheduled_at") ?? "");
   const notes = String(formData.get("notes") ?? "").trim() || null;
+  const location = parseRequiredLocation(formData.get("location"));
 
   if (!lessonId) return { error: "Aula inválida" };
+  if (!location) return { error: "Selecione o local da aula" };
 
   const scheduledAt = saoPauloInputToIso(scheduledAtRaw);
   if (!scheduledAt) return { error: "Data e horário inválidos" };
@@ -459,6 +463,7 @@ export async function updateLesson(formData: FormData) {
     .update({
       scheduled_at: scheduledAt,
       notes,
+      location,
     })
     .eq("id", lessonId)
     .eq("teacher_id", user.id)

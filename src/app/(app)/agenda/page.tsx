@@ -32,6 +32,7 @@ type LessonRow = {
   scheduled_at: string;
   status: string;
   sequence_number: number | null;
+  location: string | null;
   lesson_packages: {
     title: string;
     total_lessons: number;
@@ -160,6 +161,7 @@ export default async function AgendaPage({
       scheduled_at,
       status,
       sequence_number,
+      location,
       lesson_packages (
         title,
         total_lessons,
@@ -327,6 +329,7 @@ export default async function AgendaPage({
                 packageTitle={pkg?.title ?? null}
                 totalLessons={pkg?.total_lessons ?? null}
                 studentName={pkg?.students?.name ?? "Aluno"}
+                location={lesson.location}
               />
             );
           })}
