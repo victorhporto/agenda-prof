@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PackageListItem } from "@/components/PackageListItem";
 import { ScrollToActivePackage } from "@/components/ScrollToActivePackage";
+import { createClient } from "@/lib/supabase/server";
 import { getPackageProgress } from "@/lib/package-progress";
 import { LOCATION_SHORT, parseStoredLocation } from "@/lib/lessons/location";
 

@@ -7,6 +7,7 @@ import { syncPackagePaymentTotals } from "@/lib/payments/actions";
 import { saoPauloInputToIso, todayYmdSaoPaulo } from "@/lib/timezone";
 import { findScheduleConflicts } from "@/lib/lessons/conflicts";
 import { parseRequiredLocation } from "@/lib/lessons/location";
+import { buildRepeatedLessonRows } from "@/lib/packages/repeat-lessons";
 
 export async function createPackage(formData: FormData) {
   const supabase = await createClient();
@@ -335,12 +336,41 @@ export async function duplicatePackage(sourcePackageId: string) {
 
   const { data: source, error: sourceError } = await supabase
     .from("lesson_packages")
-    .select("id, student_id, title, total_lessons, price")
+    .select(
+      `
+      id,
+      student_id,
+      title,
+      total_lessons,
+      price,
+      lessons ( scheduled_at, status, location )
+    `,
+    )
     .eq("id", sourcePackageId)
     .eq("teacher_id", user.id)
     .single();
 
   if (sourceError || !source) return { error: "Pacote não encontrado" };
+
+  const repeatedRows = buildRepeatedLessonRows({
+    teacherId: user.id,
+    packageId: "pending",
+    lessons: source.lessons ?? [],
+    totalLessons: source.total_lessons,
+  });
+
+  if (repeatedRows.length) {
+    const conflict = await findScheduleConflicts(
+      supabase,
+      user.id,
+      repeatedRows.map((row) => row.scheduled_at),
+    );
+    if (conflict) {
+      return {
+        error: `${conflict.message} Não foi possível repetir as aulas no novo período.`,
+      };
+    }
+  }
 
   const { data, error } = await supabase
     .from("lesson_packages")
@@ -361,9 +391,26 @@ export async function duplicatePackage(sourcePackageId: string) {
 
   if (error || !data) return { error: error?.message ?? "Erro ao repetir pacote" };
 
+  if (repeatedRows.length) {
+    const { error: lessonError } = await supabase.from("lessons").insert(
+      repeatedRows.map((row) => ({
+        ...row,
+        package_id: data.id,
+      })),
+    );
+
+    if (lessonError) {
+      await supabase.from("lesson_packages").delete().eq("id", data.id);
+      return {
+        error: lessonError.message ?? "Erro ao agendar as aulas do novo pacote",
+      };
+    }
+  }
+
   revalidatePath("/pacotes");
   revalidatePath("/faturamento");
   revalidatePath("/inicio");
+  revalidatePath("/agenda");
   revalidatePath(`/alunos/${source.student_id}`);
   redirect(`/pacotes/${data.id}`);
 }
