@@ -24,5 +24,6 @@ export async function updateTeacherWindows(raw: unknown) {
 
   revalidatePath("/perfil");
   revalidatePath("/assistente");
+  revalidatePath("/agenda");
   return { ok: true as const };
 }

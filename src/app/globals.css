@@ -235,6 +235,43 @@ body {
   color: var(--danger);
 }
 
+.slot-free {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.slot-lesson {
+  background: var(--badge-info-bg);
+  color: var(--badge-info-fg);
+}
+
+.slot-travel {
+  color: var(--warning);
+  border: 1px dashed color-mix(in srgb, var(--warning) 45%, var(--border));
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--warning-soft),
+    var(--warning-soft) 7px,
+    color-mix(in srgb, var(--warning) 16%, var(--warning-soft)) 7px,
+    color-mix(in srgb, var(--warning) 16%, var(--warning-soft)) 14px
+  );
+}
+
+.slot-travel-bar {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--warning),
+    var(--warning) 4px,
+    color-mix(in srgb, var(--warning) 45%, var(--surface)) 4px,
+    color-mix(in srgb, var(--warning) 45%, var(--surface)) 8px
+  );
+}
+
+.slot-outside {
+  background: var(--badge-neutral-bg);
+  color: var(--badge-neutral-fg);
+}
+
 .skeleton {
   background: linear-gradient(
     90deg,

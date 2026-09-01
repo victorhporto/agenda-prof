@@ -28,8 +28,8 @@ export default async function PerfilPage() {
         </h1>
         <p className="mt-1 text-[var(--ink-muted)]">
           {profile?.full_name
-            ? `${profile.full_name} — disponibilidade permanente para o Assistente.`
-            : "Disponibilidade permanente para o Assistente."}
+            ? `${profile.full_name} — disponibilidade permanente para o Assistente e os horários livres.`
+            : "Disponibilidade permanente para o Assistente e os horários livres."}
         </p>
       </div>
 

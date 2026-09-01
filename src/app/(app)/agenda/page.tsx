@@ -11,7 +11,15 @@ import {
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { createClient } from "@/lib/supabase/server";
 import { AgendaLessonRow } from "@/components/AgendaLessonRow";
+import { FreeHoursPanel } from "@/components/FreeHoursPanel";
 import { effectiveLocation } from "@/lib/lessons/location";
+import {
+  buildOccupiedBlocks,
+  parseTeacherWindows,
+  summarizeTeacherWindows,
+  teacherWindowsFromStored,
+} from "@/lib/assistente/occupancy";
+import { buildWeekFreeHours } from "@/lib/assistente/free-hours";
 import {
   APP_TIMEZONE,
   formatInSaoPaulo,
@@ -25,8 +33,23 @@ type SearchParams = Promise<{
   filtro?: string;
   q?: string;
 }>;
-type AgendaView = "dia" | "semana" | "mes";
+type AgendaView = "dia" | "semana" | "mes" | "livres";
 type AgendaFilter = "todas" | "pendentes" | "atrasadas";
+
+async function loadTeacherWindows(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<unknown> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("teacher_windows")
+    .eq("id", user.id)
+    .single();
+  return profile?.teacher_windows ?? null;
+}
 
 type LessonRow = {
   id: string;
@@ -44,7 +67,7 @@ type LessonRow = {
 const WEEKDAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
 function resolveView(raw: string | undefined): AgendaView {
-  if (raw === "semana" || raw === "mes") return raw;
+  if (raw === "semana" || raw === "mes" || raw === "livres") return raw;
   return "dia";
 }
 
@@ -135,7 +158,7 @@ export default async function AgendaPage({
       ymdBounds(format(monthStart, "yyyy-MM-dd")).start,
       "MMMM yyyy",
     );
-  } else if (view === "semana") {
+  } else if (view === "semana" || view === "livres") {
     const weekStart = startOfWeek(zonedBase, { weekStartsOn: 1 });
     const weekStartYmd = format(weekStart, "yyyy-MM-dd");
     const weekEndYmd = format(addDays(weekStart, 6), "yyyy-MM-dd");
@@ -143,7 +166,10 @@ export default async function AgendaPage({
     rangeEnd = ymdBounds(weekEndYmd).end;
     prev = format(addDays(weekStart, -7), "yyyy-MM-dd");
     next = format(addDays(weekStart, 7), "yyyy-MM-dd");
-    title = `Semana de ${format(weekStart, "dd/MM")}`;
+    title =
+      view === "livres"
+        ? `Horários livres · ${format(weekStart, "dd/MM")}–${format(addDays(weekStart, 6), "dd/MM")}`
+        : `Semana de ${format(weekStart, "dd/MM")}`;
   } else {
     const bounds = ymdBounds(dayKey);
     rangeStart = bounds.start;
@@ -154,7 +180,7 @@ export default async function AgendaPage({
   }
 
   const supabase = await createClient();
-  const { data: lessons } = await supabase
+  const lessonsPromise = supabase
     .from("lessons")
     .select(
       `
@@ -174,7 +200,37 @@ export default async function AgendaPage({
     .lte("scheduled_at", rangeEnd.toISOString())
     .order("scheduled_at", { ascending: true });
 
+  const [{ data: lessons }, profile] = await Promise.all([
+    lessonsPromise,
+    view === "livres"
+      ? loadTeacherWindows(supabase)
+      : Promise.resolve(null),
+  ]);
+
   const allLessons = (lessons ?? []) as unknown as LessonRow[];
+  const teacherWindows = teacherWindowsFromStored(profile);
+  const windowsSaved = parseTeacherWindows(profile).ok;
+  const freeDays =
+    view === "livres"
+      ? buildWeekFreeHours({
+          teacherWindows,
+          occupied: buildOccupiedBlocks(
+            allLessons
+              .filter((lesson) => lesson.status === "scheduled")
+              .map((lesson) => ({
+                id: lesson.id,
+                scheduled_at: lesson.scheduled_at,
+                location: lesson.location,
+                lesson_packages: lesson.lesson_packages
+                  ? {
+                      title: lesson.lesson_packages.title,
+                      students: lesson.lesson_packages.students,
+                    }
+                  : null,
+              })),
+          ),
+        })
+      : [];
   const lessonRows = applyLessonFilters(allLessons, filtro, q, now);
   const todayKey = todayYmdSaoPaulo();
 
@@ -196,7 +252,7 @@ export default async function AgendaPage({
           <h1 className="font-display text-3xl font-bold tracking-tight">
             Agenda
           </h1>
-          <p className="mt-1 capitalize text-[var(--ink-muted)]">{title}</p>
+          <p className={`mt-1 text-[var(--ink-muted)] ${view === "dia" || view === "mes" ? "capitalize" : ""}`}>{title}</p>
         </div>
         <Link href="/aulas/nova" className="btn-primary">
           Nova aula
@@ -222,12 +278,13 @@ export default async function AgendaPage({
         >
           →
         </Link>
-        <div className="ml-auto flex rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1">
+        <div className="ml-auto flex flex-wrap rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1">
           {(
             [
               ["dia", "Dia"],
               ["semana", "Semana"],
               ["mes", "Mês"],
+              ["livres", "Livres"],
             ] as const
           ).map(([value, label]) => (
             <Link
@@ -245,6 +302,7 @@ export default async function AgendaPage({
         </div>
       </div>
 
+      {view !== "livres" ? (
       <div className="space-y-3">
         <div className="flex flex-wrap gap-2">
           {filterTabs.map((item) => (
@@ -288,8 +346,15 @@ export default async function AgendaPage({
           </button>
         </form>
       </div>
+      ) : null}
 
-      {view === "mes" && monthCells ? (
+      {view === "livres" ? (
+        <FreeHoursPanel
+          days={freeDays}
+          windowsSummary={summarizeTeacherWindows(teacherWindows)}
+          windowsSaved={windowsSaved}
+        />
+      ) : view === "mes" && monthCells ? (
         <MonthGrid cells={monthCells} filtro={filtro} q={q} />
       ) : !lessonRows.length ? (
         <div className="panel p-8 text-center">

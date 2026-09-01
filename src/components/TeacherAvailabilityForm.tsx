@@ -45,8 +45,8 @@ export function TeacherAvailabilityForm({
         <h2 className="text-lg font-semibold">Horário de atendimento</h2>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
           {saved
-            ? "O Assistente usa este horário automaticamente. Você só muda aqui quando a rotina mudar."
-            : "Ainda no padrão (segunda a sexta, 10h–20h). Salve para o Assistente lembrar da próxima vez."}
+            ? "O Assistente e os horários livres da agenda usam este horário automaticamente. Você só muda aqui quando a rotina mudar."
+            : "Ainda no padrão (segunda a sexta, 10h–20h). Salve para o Assistente e a agenda lembrarem da próxima vez."}
         </p>
       </div>
 
@@ -55,7 +55,7 @@ export function TeacherAvailabilityForm({
       {error && <p className="form-error">{error}</p>}
       {ok && (
         <p className="text-sm font-medium text-[var(--accent)]">
-          Horário salvo. O Assistente já usa este padrão.
+          Horário salvo. O Assistente e a agenda já usam este padrão.
         </p>
       )}
 
