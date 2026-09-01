@@ -4,9 +4,11 @@ import {
   civilWeekBoundsSaoPaulo,
   defaultTeacherWindows,
   findCandidateSlots,
+  formatStudentSlots,
   formatWeekLabel,
   occupiesRange,
   parseAssistenteFormInput,
+  parseStudentSlots,
   parseTeacherWindows,
   parseTimeToMinutes,
   summarizeTeacherWindows,
@@ -331,5 +333,31 @@ describe("summarizeTeacherWindows", () => {
     expect(summarizeTeacherWindows(defaultTeacherWindows())).toBe(
       "Seg–Sex 10h–20h",
     );
+  });
+});
+
+describe("parseStudentSlots", () => {
+  it("normaliza dia e hora", () => {
+    const parsed = parseStudentSlots([{ weekday: "3", time: "09:00:00" }]);
+    expect(parsed).toEqual({
+      ok: true,
+      value: [{ weekday: 3, time: "09:00" }],
+    });
+  });
+
+  it("exige pelo menos um horário válido", () => {
+    expect(parseStudentSlots([]).ok).toBe(false);
+    expect(parseStudentSlots([{ weekday: 1, time: "25:00" }]).ok).toBe(false);
+  });
+});
+
+describe("formatStudentSlots", () => {
+  it("lista dias e horas compactos", () => {
+    expect(
+      formatStudentSlots([
+        { weekday: 1, time: "10:00" },
+        { weekday: 4, time: "14:30" },
+      ]),
+    ).toBe("Seg 10h · Qui 14:30");
   });
 });

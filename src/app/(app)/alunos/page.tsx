@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { StudentForm } from "@/components/StudentForm";
 import { StudentCard } from "@/components/StudentCard";
@@ -20,7 +21,12 @@ export default async function AlunosPage() {
             Cadastre quem compra seus pacotes de aulas.
           </p>
         </div>
-        <StudentForm />
+        <div className="flex flex-wrap gap-2">
+          <Link href="/fila" className="btn-secondary">
+            Fila de espera
+          </Link>
+          <StudentForm />
+        </div>
       </div>
 
       {!students?.length ? (

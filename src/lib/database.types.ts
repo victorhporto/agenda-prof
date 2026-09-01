@@ -270,6 +270,44 @@ export type Database = {
           },
         ];
       };
+      waitlist_entries: {
+        Row: {
+          available_slots: Json;
+          contact: string;
+          created_at: string;
+          id: string;
+          location: string;
+          name: string;
+          teacher_id: string;
+        };
+        Insert: {
+          available_slots?: Json;
+          contact: string;
+          created_at?: string;
+          id?: string;
+          location: string;
+          name: string;
+          teacher_id: string;
+        };
+        Update: {
+          available_slots?: Json;
+          contact?: string;
+          created_at?: string;
+          id?: string;
+          location?: string;
+          name?: string;
+          teacher_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "waitlist_entries_teacher_id_fkey",
+            columns: ["teacher_id"],
+            isOneToOne: false,
+            referencedRelation: "profiles",
+            referencedColumns: ["id"],
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -296,3 +334,5 @@ export type LessonStatus =
 export type Student = Database["public"]["Tables"]["students"]["Row"];
 export type LessonPackage = Database["public"]["Tables"]["lesson_packages"]["Row"];
 export type Lesson = Database["public"]["Tables"]["lessons"]["Row"];
+export type WaitlistEntry =
+  Database["public"]["Tables"]["waitlist_entries"]["Row"];

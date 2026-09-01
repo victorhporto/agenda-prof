@@ -14,6 +14,7 @@ type IconName =
   | "message"
   | "assistant"
   | "profile"
+  | "queue"
   | "more"
   | "logout";
 
@@ -22,6 +23,7 @@ const desktopLinks = [
   { href: "/agenda", label: "Agenda" },
   { href: "/assistente", label: "Assistente" },
   { href: "/alunos", label: "Alunos" },
+  { href: "/fila", label: "Fila" },
   { href: "/pacotes", label: "Pacotes" },
   { href: "/faturamento", label: "Faturamento" },
   { href: "/mensagens", label: "Mensagens" },
@@ -99,6 +101,12 @@ function NavIcon({ name }: { name: IconName }) {
       <>
         <circle cx="12" cy="8" r="4" />
         <path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6" />
+      </>
+    ),
+    queue: (
+      <>
+        <path d="M8 6h13M8 12h13M8 18h13" />
+        <path d="M3 6h.01M3 12h.01M3 18h.01" />
       </>
     ),
     more: (
@@ -222,6 +230,7 @@ export function AppNav() {
     pathname.startsWith("/faturamento") ||
     pathname.startsWith("/mensagens") ||
     pathname.startsWith("/assistente") ||
+    pathname.startsWith("/fila") ||
     pathname.startsWith("/perfil");
 
   useEffect(() => {
@@ -287,6 +296,12 @@ export function AppNav() {
               icon="assistant"
               title="Assistente"
               subtitle="Encaixar aluno na grade"
+            />
+            <MoreMenuLink
+              href="/fila"
+              icon="queue"
+              title="Fila de espera"
+              subtitle="Quem aguarda uma vaga"
             />
             <MoreMenuLink
               href="/pacotes"

@@ -355,6 +355,46 @@ export function teacherWindowsFromStored(raw: unknown): TeacherWindow[] {
   return parsed.ok ? parsed.value : defaultTeacherWindows();
 }
 
+export function parseStudentSlots(
+  raw: unknown,
+): { ok: true; value: StudentSlot[] } | { ok: false; error: string } {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return { ok: false, error: "Informe pelo menos um horário do aluno" };
+  }
+  if (raw.length > 20) {
+    return { ok: false, error: "Muitos horários do aluno" };
+  }
+
+  const studentSlots: StudentSlot[] = [];
+  for (const slot of raw) {
+    if (!slot || typeof slot !== "object") {
+      return { ok: false, error: "Horário do aluno inválido" };
+    }
+    const item = slot as Record<string, unknown>;
+    const weekday = parseWeekday(item.weekday);
+    const time =
+      typeof item.time === "string" ? normalizeTime(item.time) : null;
+    if (!weekday || !time) {
+      return { ok: false, error: "Cada horário do aluno precisa de dia e hora" };
+    }
+    studentSlots.push({ weekday, time });
+  }
+
+  return { ok: true, value: studentSlots };
+}
+
+export function studentSlotsFromStored(raw: unknown): StudentSlot[] {
+  const parsed = parseStudentSlots(raw);
+  return parsed.ok ? parsed.value : [];
+}
+
+export function formatStudentSlots(slots: StudentSlot[]): string {
+  if (slots.length === 0) return "Nenhum horário";
+  return slots
+    .map((slot) => `${WEEKDAY_SHORT[slot.weekday]} ${compactClock(slot.time)}`)
+    .join(" · ");
+}
+
 function compactClock(time: string): string {
   return time.endsWith(":00") ? `${time.slice(0, 2)}h` : time;
 }
@@ -418,27 +458,8 @@ export function parseAssistenteFormInput(
     return { ok: false, error: "Selecione o local da aula" };
   }
 
-  if (!Array.isArray(data.studentSlots) || data.studentSlots.length === 0) {
-    return { ok: false, error: "Informe pelo menos um horário do aluno" };
-  }
-  if (data.studentSlots.length > 20) {
-    return { ok: false, error: "Muitos horários do aluno" };
-  }
-
-  const studentSlots: StudentSlot[] = [];
-  for (const slot of data.studentSlots) {
-    if (!slot || typeof slot !== "object") {
-      return { ok: false, error: "Horário do aluno inválido" };
-    }
-    const item = slot as Record<string, unknown>;
-    const weekday = parseWeekday(item.weekday);
-    const time =
-      typeof item.time === "string" ? normalizeTime(item.time) : null;
-    if (!weekday || !time) {
-      return { ok: false, error: "Cada horário do aluno precisa de dia e hora" };
-    }
-    studentSlots.push({ weekday, time });
-  }
+  const studentSlots = parseStudentSlots(data.studentSlots);
+  if (!studentSlots.ok) return studentSlots;
 
   const windows = parseTeacherWindows(data.teacherWindows);
   if (!windows.ok) return windows;
@@ -449,7 +470,7 @@ export function parseAssistenteFormInput(
       studentName,
       lessonsPerWeek,
       location,
-      studentSlots,
+      studentSlots: studentSlots.value,
       teacherWindows: windows.value,
     },
   };
