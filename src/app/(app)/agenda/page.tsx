@@ -216,7 +216,9 @@ export default async function AgendaPage({
           teacherWindows,
           occupied: buildOccupiedBlocks(
             allLessons
-              .filter((lesson) => lesson.status === "scheduled")
+              .filter((lesson) =>
+                ["scheduled", "completed", "missed"].includes(lesson.status),
+              )
               .map((lesson) => ({
                 id: lesson.id,
                 scheduled_at: lesson.scheduled_at,

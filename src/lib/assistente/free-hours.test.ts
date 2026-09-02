@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildWeekFreeHours,
   formatMinutesLabel,
+  segmentOutsideWorkWindows,
   travelLabel,
   weekFreeMinutes,
 } from "@/lib/assistente/free-hours";
@@ -231,8 +232,90 @@ describe("buildWeekFreeHours", () => {
       expect.objectContaining({ kind: "lesson", start: "10:00", end: "11:00" }),
     ]);
   });
+
+  it("mostra o intervalo até uma aula depois do fim do atendimento", () => {
+    const days = buildWeekFreeHours({
+      teacherWindows,
+      occupied: [
+        lesson({
+          weekday: 3,
+          start: "22:00",
+          end: "23:00",
+          studentName: "Teste 3",
+          location: "online",
+        }),
+      ],
+    });
+    const wednesday = days.find((day) => day.weekday === 3);
+    expect(wednesday?.segments.map((segment) => `${segment.kind}:${segment.start}-${segment.end}`)).toEqual(
+      ["free:10:00-20:00", "outside:20:00-22:00", "lesson:22:00-23:00"],
+    );
+    expect(wednesday?.freeMinutes).toBe(10 * 60);
+  });
+
+  it("mostra o intervalo entre uma aula cedo e o início do atendimento", () => {
+    const days = buildWeekFreeHours({
+      teacherWindows,
+      occupied: [
+        lesson({
+          weekday: 1,
+          start: "08:00",
+          end: "09:00",
+          location: "online",
+        }),
+      ],
+    });
+    const monday = days.find((day) => day.weekday === 1);
+    expect(monday?.segments.map((segment) => `${segment.kind}:${segment.start}-${segment.end}`)).toEqual(
+      ["lesson:08:00-09:00", "outside:09:00-10:00", "free:10:00-20:00"],
+    );
+    expect(monday?.freeMinutes).toBe(10 * 60);
+  });
+
+  it("mostra locomoção depois do atendimento quando a aula é na casa do aluno", () => {
+    const days = buildWeekFreeHours({
+      teacherWindows,
+      occupied: [
+        lesson({
+          weekday: 3,
+          start: "22:00",
+          end: "23:00",
+          occupiesStart: "21:00",
+          occupiesEnd: "24:00",
+          location: "casa_aluno",
+        }),
+      ],
+    });
+    const wednesday = days.find((day) => day.weekday === 3);
+    expect(wednesday?.segments.map((segment) => `${segment.kind}:${segment.start}-${segment.end}`)).toEqual(
+      [
+        "free:10:00-20:00",
+        "outside:20:00-21:00",
+        "travel:21:00-22:00",
+        "lesson:22:00-23:00",
+        "travel:23:00-24:00",
+      ],
+    );
+    expect(wednesday?.freeMinutes).toBe(10 * 60);
+  });
 });
 
+describe("segmentOutsideWorkWindows", () => {
+  it("marca aula depois do fim do atendimento", () => {
+    expect(
+      segmentOutsideWorkWindows(
+        { weekday: 3, start: "22:00", end: "23:00", kind: "lesson" },
+        [{ start: "10:00", end: "20:00" }],
+      ),
+    ).toBe(true);
+    expect(
+      segmentOutsideWorkWindows(
+        { weekday: 3, start: "14:00", end: "15:00", kind: "lesson" },
+        [{ start: "10:00", end: "20:00" }],
+      ),
+    ).toBe(false);
+  });
+});
 describe("formatMinutesLabel", () => {
   it("formata horas e minutos", () => {
     expect(formatMinutesLabel(0)).toBe("0h");

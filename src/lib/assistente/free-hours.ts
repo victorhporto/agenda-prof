@@ -188,12 +188,7 @@ function classifyInterval(
     };
   }
 
-  const insideDisplay = start >= displayStart && end <= displayEnd;
-  const betweenWindows =
-    windows.length >= 1 &&
-    start >= windows[0]!.start &&
-    end <= windows[windows.length - 1]!.end;
-  if (insideDisplay && betweenWindows) {
+  if (start >= displayStart && end <= displayEnd) {
     return {
       weekday,
       start: formatClock(start),
@@ -352,4 +347,19 @@ export function lessonPlaceLabel(location: LessonLocation | null | undefined) {
 
 export function segmentDurationMinutes(segment: TimelineSegment): number {
   return durationOf(segment);
+}
+
+export function segmentOutsideWorkWindows(
+  segment: TimelineSegment,
+  windows: { start: string; end: string }[],
+): boolean {
+  const start = parseTimeToMinutes(segment.start);
+  const end = parseTimeToMinutes(segment.end);
+  if (start == null || end == null) return false;
+  return !windows.some((window) => {
+    const windowStart = parseTimeToMinutes(window.start);
+    const windowEnd = parseTimeToMinutes(window.end);
+    if (windowStart == null || windowEnd == null) return false;
+    return start >= windowStart && end <= windowEnd;
+  });
 }

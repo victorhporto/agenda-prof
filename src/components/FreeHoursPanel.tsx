@@ -4,6 +4,7 @@ import {
   formatMinutesLabel,
   lessonPlaceLabel,
   segmentDurationMinutes,
+  segmentOutsideWorkWindows,
   travelLabel,
   weekFreeMinutes,
   type DayFreeHours,
@@ -32,9 +33,12 @@ function segmentTitle(segment: TimelineSegment) {
   return segment.studentName ?? "Aula";
 }
 
-function segmentDetail(segment: TimelineSegment) {
+function segmentDetail(
+  segment: TimelineSegment,
+  windows: { start: string; end: string }[],
+) {
   if (segment.kind === "free") {
-    return `${formatMinutesLabel(segmentDurationMinutes(segment))} para encaixar aula`;
+    return `${formatMinutesLabel(segmentDurationMinutes(segment))} no atendimento`;
   }
   if (segment.kind === "outside") {
     return "Intervalo fora do horário cadastrado no perfil";
@@ -44,7 +48,13 @@ function segmentDetail(segment: TimelineSegment) {
   }
   const place = lessonPlaceLabel(segment.location);
   const pkg = segment.packageTitle;
-  return [pkg, place].filter(Boolean).join(" · ");
+  const detail = [pkg, place].filter(Boolean).join(" · ");
+  if (segmentOutsideWorkWindows(segment, windows)) {
+    return detail
+      ? `${detail} · Fora do horário de atendimento`
+      : "Fora do horário de atendimento";
+  }
+  return detail;
 }
 
 function DayBar({ segments }: { segments: TimelineSegment[] }) {
@@ -68,7 +78,13 @@ function DayBar({ segments }: { segments: TimelineSegment[] }) {
   );
 }
 
-function SegmentRow({ segment }: { segment: TimelineSegment }) {
+function SegmentRow({
+  segment,
+  windows,
+}: {
+  segment: TimelineSegment;
+  windows: { start: string; end: string }[];
+}) {
   const title = segmentTitle(segment);
   const body = (
     <>
@@ -76,7 +92,9 @@ function SegmentRow({ segment }: { segment: TimelineSegment }) {
         {segment.start}–{segment.end}
       </p>
       <p className="mt-0.5 font-semibold">{title}</p>
-      <p className="text-sm text-[var(--ink-muted)]">{segmentDetail(segment)}</p>
+      <p className="text-sm text-[var(--ink-muted)]">
+        {segmentDetail(segment, windows)}
+      </p>
     </>
   );
 
@@ -123,6 +141,7 @@ function DayCard({ day }: { day: DayFreeHours }) {
           <SegmentRow
             key={`${day.weekday}-${segment.start}-${segment.kind}-${index}`}
             segment={segment}
+            windows={day.windows}
           />
         ))}
       </ul>
@@ -159,8 +178,10 @@ export function FreeHoursPanel({
           </p>
         </div>
         <p className="text-sm text-[var(--ink-muted)]">
-          Cruza aulas agendadas com o horário do perfil. Na casa do aluno, 1h
-          antes e 1h depois entram como deslocamento — não estão livres.
+          Cruza as aulas da semana com o horário do perfil. Aulas fora dessa
+          janela não reduzem as horas livres — aparecem como fora do
+          atendimento. Na casa do aluno, 1h antes e 1h depois entram como
+          deslocamento.
         </p>
         <p className="text-sm">
           <span className="font-medium">Atendimento:</span> {windowsSummary}

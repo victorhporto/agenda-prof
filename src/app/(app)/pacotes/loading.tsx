@@ -1,5 +1,5 @@
 import { ListPageSkeleton } from "@/components/skeletons";
 
 export default function Loading() {
-  return <ListPageSkeleton label="Carregando pacotes" />;
+  return <ListPageSkeleton label="Carregando pacotes" withTabs />;
 }

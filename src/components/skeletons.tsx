@@ -170,12 +170,17 @@ export function AgendaSkeleton() {
 /** Lista genérica (alunos, pacotes) */
 export function ListPageSkeleton({
   label = "Carregando",
+  withTabs = false,
 }: {
   label?: string;
+  withTabs?: boolean;
 }) {
   return (
     <div className="space-y-6" role="status" aria-label={label}>
       <PageHeaderSkeleton />
+      {withTabs && (
+        <Skeleton className="h-10 w-56 rounded-xl" />
+      )}
       <ListCardsSkeleton count={5} rows={2} />
     </div>
   );

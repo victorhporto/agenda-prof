@@ -52,7 +52,7 @@ export default async function PacoteDetailPage({ params }: Props) {
     <div className="space-y-6">
       <div>
         <Link
-          href="/pacotes"
+          href={pkg.status === "closed" ? "/pacotes?status=closed" : "/pacotes"}
           className="text-sm font-medium text-[var(--accent)]"
         >
           ← Pacotes
