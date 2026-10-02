@@ -7,7 +7,7 @@ export default async function FilaPage() {
   const { data: entries } = await supabase
     .from("waitlist_entries")
     .select(
-      "id, name, contact, location, available_slots, created_at, address, lat",
+      "id, name, contact, location, available_slots, created_at, address, address_parts, lat",
     )
     .order("created_at", { ascending: true });
 

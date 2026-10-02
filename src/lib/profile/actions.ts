@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parseTeacherWindows } from "@/lib/assistente/occupancy";
-import { resolveAddress } from "@/lib/geo/geocode";
+import { resolveAddressParts } from "@/lib/geo/geocode";
+import { parseAddressParts } from "@/lib/geo/address";
 import type { Json } from "@/lib/database.types";
 
 export async function updateTeacherWindows(raw: unknown) {
@@ -36,13 +37,16 @@ export async function updateBaseAddress(raw: unknown) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Faça login novamente." };
 
+  const parts = parseAddressParts(raw);
+  if (!parts.ok) return { error: parts.error };
+
   const { data: previous } = await supabase
     .from("profiles")
     .select("base_address, base_lat, base_lng")
     .eq("id", user.id)
     .maybeSingle();
-  const resolved = await resolveAddress(
-    raw,
+  const resolved = await resolveAddressParts(
+    parts.value,
     previous
       ? {
           address: previous.base_address,
@@ -56,6 +60,7 @@ export async function updateBaseAddress(raw: unknown) {
     .from("profiles")
     .update({
       base_address: resolved.address,
+      base_address_parts: parts.value as Json | null,
       base_lat: resolved.lat,
       base_lng: resolved.lng,
     })

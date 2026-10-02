@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parseRequiredLocation } from "@/lib/lessons/location";
 import { parseStudentSlots } from "@/lib/assistente/occupancy";
-import { resolveAddress } from "@/lib/geo/geocode";
+import { resolveAddressParts } from "@/lib/geo/geocode";
+import { parseAddressParts } from "@/lib/geo/address";
 import type { Json } from "@/lib/database.types";
 
 type WaitlistRaw = {
@@ -27,14 +28,18 @@ function parseWaitlistInput(raw: WaitlistRaw) {
     return { ok: false as const, error: "Selecione a preferência de local" };
   }
   if (!slots.ok) return slots;
+  const address = parseAddressParts(raw.address);
+  if (!address.ok) return address;
 
   return {
     ok: true as const,
+    address: address.value,
     value: {
       name,
       contact,
       location,
       available_slots: slots.value as Json,
+      address_parts: address.value as Json | null,
     },
   };
 }
@@ -49,7 +54,7 @@ export async function createWaitlistEntry(raw: WaitlistRaw) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado" };
 
-  const address = await resolveAddress(raw.address);
+  const address = await resolveAddressParts(parsed.address);
   const { error } = await supabase.from("waitlist_entries").insert({
     teacher_id: user.id,
     ...parsed.value,
@@ -79,7 +84,7 @@ export async function updateWaitlistEntry(id: string, raw: WaitlistRaw) {
     .eq("id", id)
     .eq("teacher_id", user.id)
     .maybeSingle();
-  const address = await resolveAddress(raw.address, previous);
+  const address = await resolveAddressParts(parsed.address, previous);
 
   const { error } = await supabase
     .from("waitlist_entries")

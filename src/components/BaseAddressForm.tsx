@@ -2,18 +2,24 @@
 
 import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { AddressField, AddressLine } from "@/components/AddressField";
+import { AddressFields, AddressLine } from "@/components/AddressField";
 import { updateBaseAddress } from "@/lib/profile/actions";
+import { storedAddressParts, type AddressParts } from "@/lib/geo/address";
 
 export function BaseAddressForm({
   initialAddress,
+  initialParts,
   initialLat,
 }: {
   initialAddress: string | null;
+  initialParts: unknown;
   initialLat: number | null;
 }) {
   const router = useRouter();
-  const [address, setAddress] = useState(initialAddress ?? "");
+  const [defaultParts] = useState(() =>
+    storedAddressParts(initialParts, initialAddress),
+  );
+  const [parts, setParts] = useState<AddressParts>(defaultParts);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -23,7 +29,7 @@ export function BaseAddressForm({
     setError(null);
     setMessage(null);
     startTransition(async () => {
-      const result = await updateBaseAddress(address);
+      const result = await updateBaseAddress(parts);
       if ("error" in result) {
         setError(result.error ?? "Não foi possível salvar");
         return;
@@ -47,10 +53,10 @@ export function BaseAddressForm({
         </p>
       </div>
 
-      <AddressField
-        value={address}
-        onChange={setAddress}
-        label="Seu endereço"
+      <AddressFields
+        defaultValue={defaultParts}
+        onChange={setParts}
+        legend="Seu endereço"
         hint="Usado para estimar o deslocamento até a casa dos alunos."
       />
       <AddressLine address={initialAddress} lat={initialLat} />

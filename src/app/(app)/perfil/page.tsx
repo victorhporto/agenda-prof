@@ -14,7 +14,7 @@ export default async function PerfilPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, teacher_windows, base_address, base_lat")
+    .select("full_name, teacher_windows, base_address, base_address_parts, base_lat")
     .eq("id", user!.id)
     .single();
 
@@ -41,6 +41,7 @@ export default async function PerfilPage() {
 
       <BaseAddressForm
         initialAddress={profile?.base_address ?? null}
+        initialParts={profile?.base_address_parts ?? null}
         initialLat={profile?.base_lat ?? null}
       />
     </div>

@@ -190,6 +190,7 @@ export type Database = {
       profiles: {
         Row: {
           base_address: string | null;
+          base_address_parts: Json | null;
           base_lat: number | null;
           base_lng: number | null;
           created_at: string;
@@ -207,6 +208,7 @@ export type Database = {
         };
         Insert: {
           base_address?: string | null;
+          base_address_parts?: Json | null;
           base_lat?: number | null;
           base_lng?: number | null;
           created_at?: string;
@@ -224,6 +226,7 @@ export type Database = {
         };
         Update: {
           base_address?: string | null;
+          base_address_parts?: Json | null;
           base_lat?: number | null;
           base_lng?: number | null;
           created_at?: string;
@@ -244,6 +247,7 @@ export type Database = {
       students: {
         Row: {
           address: string | null;
+          address_parts: Json | null;
           created_at: string;
           id: string;
           lat: number | null;
@@ -256,6 +260,7 @@ export type Database = {
         };
         Insert: {
           address?: string | null;
+          address_parts?: Json | null;
           created_at?: string;
           id?: string;
           lat?: number | null;
@@ -268,6 +273,7 @@ export type Database = {
         };
         Update: {
           address?: string | null;
+          address_parts?: Json | null;
           created_at?: string;
           id?: string;
           lat?: number | null;
@@ -291,6 +297,7 @@ export type Database = {
       waitlist_entries: {
         Row: {
           address: string | null;
+          address_parts: Json | null;
           available_slots: Json;
           contact: string;
           created_at: string;
@@ -303,6 +310,7 @@ export type Database = {
         };
         Insert: {
           address?: string | null;
+          address_parts?: Json | null;
           available_slots?: Json;
           contact: string;
           created_at?: string;
@@ -315,6 +323,7 @@ export type Database = {
         };
         Update: {
           address?: string | null;
+          address_parts?: Json | null;
           available_slots?: Json;
           contact?: string;
           created_at?: string;

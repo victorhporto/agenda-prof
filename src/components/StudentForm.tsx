@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createStudent } from "@/lib/students/actions";
 import { LocationRadios } from "@/components/LocationRadios";
-import { AddressField } from "@/components/AddressField";
+import { AddressFields } from "@/components/AddressField";
 import type { LessonLocation } from "@/lib/lessons/location";
 
 export function StudentForm() {
@@ -51,7 +51,7 @@ export function StudentForm() {
         value={location}
         onChange={setLocation}
       />
-      <AddressField name="address" />
+      <AddressFields namePrefix="address_" />
       <label className="block text-sm font-medium text-[var(--ink-muted)]">
         Observações
         <textarea name="notes" rows={2} className="input mt-1" />

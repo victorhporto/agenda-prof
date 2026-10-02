@@ -8,7 +8,8 @@ import {
 } from "@/lib/waitlist/actions";
 import { LocationRadios } from "@/components/LocationRadios";
 import { StudentSlotsEditor } from "@/components/StudentSlotsEditor";
-import { AddressField, AddressLine } from "@/components/AddressField";
+import { AddressFields, AddressLine } from "@/components/AddressField";
+import { storedAddressParts, type AddressParts } from "@/lib/geo/address";
 import {
   LOCATION_SHORT,
   parseStoredLocation,
@@ -30,6 +31,7 @@ export type WaitlistEntryView = {
   available_slots: unknown;
   created_at: string;
   address: string | null;
+  address_parts: unknown;
   lat: number | null;
 };
 
@@ -49,7 +51,9 @@ export function WaitlistCard({
   const [location, setLocation] = useState<LessonLocation>(
     () => parseStoredLocation(entry.location) ?? "online",
   );
-  const [address, setAddress] = useState(entry.address ?? "");
+  const [address, setAddress] = useState<AddressParts>(() =>
+    storedAddressParts(entry.address_parts, entry.address),
+  );
   const [slots, setSlots] = useState<StudentSlot[]>(() =>
     studentSlotsFromStored(entry.available_slots),
   );
@@ -122,7 +126,7 @@ export function WaitlistCard({
             value={location}
             onChange={setLocation}
           />
-          <AddressField value={address} onChange={setAddress} />
+          <AddressFields defaultValue={address} onChange={setAddress} />
           <StudentSlotsEditor value={slots} onChange={setSlots} />
           {error && <p className="form-error">{error}</p>}
           <div className="flex gap-2">
@@ -136,7 +140,7 @@ export function WaitlistCard({
                 setName(entry.name);
                 setContact(entry.contact);
                 setLocation(parseStoredLocation(entry.location) ?? "online");
-                setAddress(entry.address ?? "");
+                setAddress(storedAddressParts(entry.address_parts, entry.address));
                 setSlots(studentSlotsFromStored(entry.available_slots));
                 setError(null);
                 setEditing(false);
@@ -178,7 +182,7 @@ export function WaitlistCard({
               setName(entry.name);
               setContact(entry.contact);
               setLocation(parseStoredLocation(entry.location) ?? "online");
-              setAddress(entry.address ?? "");
+              setAddress(storedAddressParts(entry.address_parts, entry.address));
               setSlots(studentSlotsFromStored(entry.available_slots));
               setError(null);
               setEditing(true);
