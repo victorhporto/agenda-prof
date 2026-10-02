@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parseRequiredLocation } from "@/lib/lessons/location";
+import { resolveAddress } from "@/lib/geo/geocode";
 
 export async function createStudent(formData: FormData) {
   const supabase = await createClient();
@@ -19,12 +20,14 @@ export async function createStudent(formData: FormData) {
   if (!name) return { error: "Nome é obrigatório" };
   if (!defaultLocation) return { error: "Selecione o local padrão das aulas" };
 
+  const address = await resolveAddress(formData.get("address"));
   const { error } = await supabase.from("students").insert({
     teacher_id: user.id,
     name,
     phone,
     notes,
     default_location: defaultLocation,
+    ...address,
   });
 
   if (error) return { error: error.message };
@@ -51,9 +54,23 @@ export async function updateStudent(formData: FormData) {
   if (!name) return { error: "Nome é obrigatório" };
   if (!defaultLocation) return { error: "Selecione o local padrão das aulas" };
 
+  const { data: previous } = await supabase
+    .from("students")
+    .select("address, lat, lng")
+    .eq("id", id)
+    .eq("teacher_id", user.id)
+    .maybeSingle();
+  const address = await resolveAddress(formData.get("address"), previous);
+
   const { error } = await supabase
     .from("students")
-    .update({ name, phone, notes, default_location: defaultLocation })
+    .update({
+      name,
+      phone,
+      notes,
+      default_location: defaultLocation,
+      ...address,
+    })
     .eq("id", id)
     .eq("teacher_id", user.id);
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PackageListItem } from "@/components/PackageListItem";
 import { ScrollToActivePackage } from "@/components/ScrollToActivePackage";
+import { AddressLine } from "@/components/AddressField";
 import { createClient } from "@/lib/supabase/server";
 import { getPackageProgress } from "@/lib/package-progress";
 import { LOCATION_SHORT, parseStoredLocation } from "@/lib/lessons/location";
@@ -63,6 +64,7 @@ export default async function AlunoDetailPage({ params }: Props) {
                 {LOCATION_SHORT[defaultLocation]}
               </p>
             )}
+            <AddressLine address={student.address} lat={student.lat} />
             {student.notes && (
               <p className="mt-2 text-sm text-[var(--ink-muted)]">
                 {student.notes}

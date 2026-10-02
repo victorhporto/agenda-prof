@@ -189,6 +189,9 @@ export type Database = {
       };
       profiles: {
         Row: {
+          base_address: string | null;
+          base_lat: number | null;
+          base_lng: number | null;
           created_at: string;
           full_name: string | null;
           id: string;
@@ -203,6 +206,9 @@ export type Database = {
           teacher_windows: Json | null;
         };
         Insert: {
+          base_address?: string | null;
+          base_lat?: number | null;
+          base_lng?: number | null;
           created_at?: string;
           full_name?: string | null;
           id: string;
@@ -217,6 +223,9 @@ export type Database = {
           teacher_windows?: Json | null;
         };
         Update: {
+          base_address?: string | null;
+          base_lat?: number | null;
+          base_lng?: number | null;
           created_at?: string;
           full_name?: string | null;
           id?: string;
@@ -234,8 +243,11 @@ export type Database = {
       };
       students: {
         Row: {
+          address: string | null;
           created_at: string;
           id: string;
+          lat: number | null;
+          lng: number | null;
           name: string;
           notes: string | null;
           phone: string | null;
@@ -243,8 +255,11 @@ export type Database = {
           teacher_id: string;
         };
         Insert: {
+          address?: string | null;
           created_at?: string;
           id?: string;
+          lat?: number | null;
+          lng?: number | null;
           name: string;
           notes?: string | null;
           phone?: string | null;
@@ -252,8 +267,11 @@ export type Database = {
           teacher_id: string;
         };
         Update: {
+          address?: string | null;
           created_at?: string;
           id?: string;
+          lat?: number | null;
+          lng?: number | null;
           name?: string;
           notes?: string | null;
           phone?: string | null;
@@ -272,28 +290,37 @@ export type Database = {
       };
       waitlist_entries: {
         Row: {
+          address: string | null;
           available_slots: Json;
           contact: string;
           created_at: string;
           id: string;
+          lat: number | null;
+          lng: number | null;
           location: string;
           name: string;
           teacher_id: string;
         };
         Insert: {
+          address?: string | null;
           available_slots?: Json;
           contact: string;
           created_at?: string;
           id?: string;
+          lat?: number | null;
+          lng?: number | null;
           location: string;
           name: string;
           teacher_id: string;
         };
         Update: {
+          address?: string | null;
           available_slots?: Json;
           contact?: string;
           created_at?: string;
           id?: string;
+          lat?: number | null;
+          lng?: number | null;
           location?: string;
           name?: string;
           teacher_id?: string;

@@ -4,14 +4,18 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parseRequiredLocation } from "@/lib/lessons/location";
 import { parseStudentSlots } from "@/lib/assistente/occupancy";
+import { resolveAddress } from "@/lib/geo/geocode";
 import type { Json } from "@/lib/database.types";
 
-function parseWaitlistInput(raw: {
+type WaitlistRaw = {
   name?: unknown;
   contact?: unknown;
   location?: unknown;
   slots?: unknown;
-}) {
+  address?: unknown;
+};
+
+function parseWaitlistInput(raw: WaitlistRaw) {
   const name = typeof raw.name === "string" ? raw.name.trim() : "";
   const contact = typeof raw.contact === "string" ? raw.contact.trim() : "";
   const location = parseRequiredLocation(raw.location);
@@ -35,12 +39,7 @@ function parseWaitlistInput(raw: {
   };
 }
 
-export async function createWaitlistEntry(raw: {
-  name: string;
-  contact: string;
-  location: unknown;
-  slots: unknown;
-}) {
+export async function createWaitlistEntry(raw: WaitlistRaw) {
   const parsed = parseWaitlistInput(raw);
   if (!parsed.ok) return { error: parsed.error };
 
@@ -50,9 +49,11 @@ export async function createWaitlistEntry(raw: {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Não autenticado" };
 
+  const address = await resolveAddress(raw.address);
   const { error } = await supabase.from("waitlist_entries").insert({
     teacher_id: user.id,
     ...parsed.value,
+    ...address,
   });
 
   if (error) return { error: error.message };
@@ -61,15 +62,7 @@ export async function createWaitlistEntry(raw: {
   return { success: true as const };
 }
 
-export async function updateWaitlistEntry(
-  id: string,
-  raw: {
-    name: string;
-    contact: string;
-    location: unknown;
-    slots: unknown;
-  },
-) {
+export async function updateWaitlistEntry(id: string, raw: WaitlistRaw) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -80,9 +73,17 @@ export async function updateWaitlistEntry(
   const parsed = parseWaitlistInput(raw);
   if (!parsed.ok) return { error: parsed.error };
 
+  const { data: previous } = await supabase
+    .from("waitlist_entries")
+    .select("address, lat, lng")
+    .eq("id", id)
+    .eq("teacher_id", user.id)
+    .maybeSingle();
+  const address = await resolveAddress(raw.address, previous);
+
   const { error } = await supabase
     .from("waitlist_entries")
-    .update(parsed.value)
+    .update({ ...parsed.value, ...address })
     .eq("id", id)
     .eq("teacher_id", user.id);
 

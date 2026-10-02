@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { updateStudent } from "@/lib/students/actions";
 import { DeleteStudentButton } from "@/components/DeleteStudentButton";
 import { LocationRadios } from "@/components/LocationRadios";
+import { AddressField, AddressLine } from "@/components/AddressField";
 import {
   LOCATION_SHORT,
   parseStoredLocation,
@@ -18,6 +19,8 @@ type Student = {
   phone: string | null;
   notes: string | null;
   default_location: string | null;
+  address: string | null;
+  lat: number | null;
 };
 
 export function StudentCard({ student }: { student: Student }) {
@@ -72,6 +75,7 @@ export function StudentCard({ student }: { student: Student }) {
             value={location}
             onChange={setLocation}
           />
+          <AddressField name="address" defaultValue={student.address} />
           <label className="block text-sm font-medium text-[var(--ink-muted)]">
             Observações
             <textarea
@@ -118,6 +122,7 @@ export function StudentCard({ student }: { student: Student }) {
             {LOCATION_SHORT[defaultLabel]}
           </p>
         )}
+        <AddressLine address={student.address} lat={student.lat} />
         {student.notes && (
           <p className="mt-1 text-sm text-[var(--ink-muted)]">{student.notes}</p>
         )}

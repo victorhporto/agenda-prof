@@ -8,6 +8,7 @@ import {
 } from "@/lib/waitlist/actions";
 import { LocationRadios } from "@/components/LocationRadios";
 import { StudentSlotsEditor } from "@/components/StudentSlotsEditor";
+import { AddressField, AddressLine } from "@/components/AddressField";
 import {
   LOCATION_SHORT,
   parseStoredLocation,
@@ -28,6 +29,8 @@ export type WaitlistEntryView = {
   location: string;
   available_slots: unknown;
   created_at: string;
+  address: string | null;
+  lat: number | null;
 };
 
 export function WaitlistCard({
@@ -46,6 +49,7 @@ export function WaitlistCard({
   const [location, setLocation] = useState<LessonLocation>(
     () => parseStoredLocation(entry.location) ?? "online",
   );
+  const [address, setAddress] = useState(entry.address ?? "");
   const [slots, setSlots] = useState<StudentSlot[]>(() =>
     studentSlotsFromStored(entry.available_slots),
   );
@@ -65,6 +69,7 @@ export function WaitlistCard({
         contact,
         location,
         slots,
+        address,
       });
       if (result.error) {
         setError(result.error);
@@ -117,6 +122,7 @@ export function WaitlistCard({
             value={location}
             onChange={setLocation}
           />
+          <AddressField value={address} onChange={setAddress} />
           <StudentSlotsEditor value={slots} onChange={setSlots} />
           {error && <p className="form-error">{error}</p>}
           <div className="flex gap-2">
@@ -130,6 +136,7 @@ export function WaitlistCard({
                 setName(entry.name);
                 setContact(entry.contact);
                 setLocation(parseStoredLocation(entry.location) ?? "online");
+                setAddress(entry.address ?? "");
                 setSlots(studentSlotsFromStored(entry.available_slots));
                 setError(null);
                 setEditing(false);
@@ -157,6 +164,7 @@ export function WaitlistCard({
               {LOCATION_SHORT[locationLabel]}
             </p>
           ) : null}
+          <AddressLine address={entry.address} lat={entry.lat} />
           <p className="mt-2 text-sm">{formatStudentSlots(storedSlots)}</p>
           <p className="mt-1 text-xs text-[var(--ink-muted)]">
             Entrou em {formatInSaoPaulo(entry.created_at, "dd/MM 'às' HH:mm")}
@@ -170,6 +178,7 @@ export function WaitlistCard({
               setName(entry.name);
               setContact(entry.contact);
               setLocation(parseStoredLocation(entry.location) ?? "online");
+              setAddress(entry.address ?? "");
               setSlots(studentSlotsFromStored(entry.available_slots));
               setError(null);
               setEditing(true);

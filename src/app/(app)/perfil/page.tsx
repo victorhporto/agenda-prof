@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { TeacherAvailabilityForm } from "@/components/TeacherAvailabilityForm";
+import { BaseAddressForm } from "@/components/BaseAddressForm";
 import {
   parseTeacherWindows,
   teacherWindowsFromStored,
@@ -13,7 +14,7 @@ export default async function PerfilPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, teacher_windows")
+    .select("full_name, teacher_windows, base_address, base_lat")
     .eq("id", user!.id)
     .single();
 
@@ -36,6 +37,11 @@ export default async function PerfilPage() {
       <TeacherAvailabilityForm
         initialWindows={windows}
         saved={stored.ok}
+      />
+
+      <BaseAddressForm
+        initialAddress={profile?.base_address ?? null}
+        initialLat={profile?.base_lat ?? null}
       />
     </div>
   );
