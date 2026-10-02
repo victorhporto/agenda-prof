@@ -3,13 +3,16 @@ import {
   buildWeekFreeHours,
   formatMinutesLabel,
   segmentOutsideWorkWindows,
+  travelDetail,
   travelLabel,
   weekFreeMinutes,
 } from "@/lib/assistente/free-hours";
 import {
   defaultTeacherWindows,
+  withDayTravel,
   type OccupiedBlock,
 } from "@/lib/assistente/occupancy";
+import { basePlace, studentPlace } from "@/lib/geo/travel";
 
 const teacherWindows = defaultTeacherWindows();
 
@@ -27,6 +30,47 @@ function lesson(partial: Partial<OccupiedBlock> & Pick<OccupiedBlock, "weekday" 
 }
 
 describe("buildWeekFreeHours", () => {
+  it("usa o deslocamento estimado pela distância entre as aulas do dia", () => {
+    const base = basePlace({ lat: -23.4796813, lng: -46.6029076 });
+    const occupied = withDayTravel(
+      [
+        lesson({
+          weekday: 2,
+          start: "14:00",
+          end: "15:00",
+          location: "casa_aluno",
+          studentName: "Teste 1",
+          lessonId: "t1",
+          place: studentPlace("t1", { lat: -23.4834798, lng: -46.6099892 }),
+        }),
+        lesson({
+          weekday: 2,
+          start: "15:30",
+          end: "16:30",
+          location: "casa_aluno",
+          studentName: "Teste 2",
+          lessonId: "t2",
+          place: studentPlace("t2", { lat: -23.5001193, lng: -46.6107279 }),
+        }),
+      ],
+      base,
+    );
+    const tuesday = buildWeekFreeHours({ teacherWindows, occupied }).find(
+      (day) => day.weekday === 2,
+    )!;
+    const travel = tuesday.segments.filter((segment) => segment.kind === "travel");
+
+    expect(travel.map((segment) => `${segment.start}–${segment.end}`)).toEqual([
+      "13:45–14:00",
+      "15:15–15:30",
+      "16:30–16:45",
+    ]);
+    expect(travelLabel(travel[1]!)).toBe("Deslocamento até Teste 2");
+    expect(travelDetail(travel[1]!)).toBe("Deslocamento ~15 min (2,6 km)");
+    expect(travelLabel(travel[2]!)).toBe("Volta para a base após Teste 2");
+    expect(tuesday.freeMinutes).toBe(10 * 60 - 3 * 15 - 2 * 60);
+  });
+
   it("marca a janela inteira como livre quando não há aulas", () => {
     const days = buildWeekFreeHours({ teacherWindows, occupied: [] });
     expect(days).toHaveLength(5);
@@ -346,6 +390,6 @@ describe("travelLabel", () => {
         studentName: "Ana",
         travelSide: "after",
       }),
-    ).toBe("Deslocamento após Ana");
+    ).toBe("Volta para a base após Ana");
   });
 });

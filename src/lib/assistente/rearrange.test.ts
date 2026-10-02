@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   defaultTeacherWindows,
   occupiesRange,
@@ -13,8 +13,14 @@ import {
   solveRearrangement,
 } from "@/lib/assistente/rearrange";
 import type { LessonLocation } from "@/lib/lessons/location";
+import { basePlace, studentPlace } from "@/lib/geo/travel";
 
 const teacherWindows = defaultTeacherWindows();
+const VILA_MAZZEI = { lat: -23.4796813, lng: -46.6029076 };
+const TRAMWAY = { lat: -23.4834798, lng: -46.6099892 };
+const CONCEICAO = { lat: -23.5001193, lng: -46.6107279 };
+const MASP = { lat: -23.5614961, lng: -46.6559677 };
+let base = basePlace();
 
 function block(
   studentId: string,
@@ -43,9 +49,28 @@ function solve(
   occupied: OccupiedBlock[],
   students: { studentId: string; studentSlots: { weekday: Weekday; time: string }[] }[],
 ) {
-  const context = buildRearrangeContext(occupied, { students, teacherWindows });
+  const context = buildRearrangeContext(
+    occupied,
+    { students, teacherWindows },
+    base,
+  );
   if (!context.ok) throw new Error(context.error);
-  return { context, plan: solveRearrangement(context.moving) };
+  return {
+    context,
+    plan: solveRearrangement(context.moving, context.fixed, base),
+  };
+}
+
+function atHome(
+  studentId: string,
+  weekday: Weekday,
+  start: string,
+  coords: { lat: number; lng: number },
+): OccupiedBlock {
+  return {
+    ...block(studentId, weekday, start, "casa_aluno"),
+    place: studentPlace(studentId, coords),
+  };
 }
 
 describe("parseRearrangeInput", () => {
@@ -161,5 +186,49 @@ describe("solveRearrangement", () => {
     expect(plan.entries[0]?.missing).toBe(1);
     expect(plan.placedLessons).toBe(1);
     expect(plan.totalLessons).toBe(2);
+  });
+});
+
+describe("solveRearrangement com endereços", () => {
+  beforeEach(() => {
+    base = basePlace(VILA_MAZZEI);
+  });
+  afterEach(() => {
+    base = basePlace();
+  });
+
+  it("prefere o dia em que já vai a um aluno vizinho", () => {
+    const { plan } = solve(
+      [atHome("t", 2, "14:00", TRAMWAY), atHome("x", 3, "10:00", CONCEICAO)],
+      [
+        {
+          studentId: "x",
+          studentSlots: [
+            { weekday: 4, time: "16:00" },
+            { weekday: 2, time: "16:00" },
+          ],
+        },
+      ],
+    );
+    const slot = plan.entries[0]?.slots[0];
+    expect(slot?.weekday).toBe(2);
+    expect(slot?.travelBefore?.minutes).toBe(15);
+    expect(plan.proposedTravel.minutes).toBeLessThan(plan.currentTravel.minutes);
+  });
+
+  it("aluno perto cabe com 15 min de intervalo; longe não", () => {
+    const { plan } = solve(
+      [
+        atHome("t", 2, "14:00", TRAMWAY),
+        atHome("c", 1, "10:00", CONCEICAO),
+        atHome("m", 1, "12:00", MASP),
+      ],
+      [
+        { studentId: "c", studentSlots: [{ weekday: 2, time: "15:15" }] },
+        { studentId: "m", studentSlots: [{ weekday: 2, time: "15:15" }] },
+      ],
+    );
+    expect(plan.entries[0]?.slots[0]?.time).toBe("15:15");
+    expect(plan.entries[1]?.slots).toHaveLength(0);
   });
 });

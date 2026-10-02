@@ -20,6 +20,7 @@ import {
   teacherWindowsFromStored,
 } from "@/lib/assistente/occupancy";
 import { buildWeekFreeHours } from "@/lib/assistente/free-hours";
+import { basePlace, type Place } from "@/lib/geo/travel";
 import {
   APP_TIMEZONE,
   formatInSaoPaulo,
@@ -36,19 +37,26 @@ type SearchParams = Promise<{
 type AgendaView = "dia" | "semana" | "mes" | "livres";
 type AgendaFilter = "todas" | "pendentes" | "atrasadas";
 
-async function loadTeacherWindows(
+async function loadTeacherSchedule(
   supabase: Awaited<ReturnType<typeof createClient>>,
-): Promise<unknown> {
+): Promise<{ windows: unknown; base: Place }> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return null;
+  if (!user) return { windows: null, base: basePlace() };
   const { data: profile } = await supabase
     .from("profiles")
-    .select("teacher_windows")
+    .select("teacher_windows, base_lat, base_lng")
     .eq("id", user.id)
     .single();
-  return profile?.teacher_windows ?? null;
+  return {
+    windows: profile?.teacher_windows ?? null,
+    base: basePlace(
+      profile?.base_lat != null && profile?.base_lng != null
+        ? { lat: profile.base_lat, lng: profile.base_lng }
+        : null,
+    ),
+  };
 }
 
 type LessonRow = {
@@ -60,7 +68,13 @@ type LessonRow = {
   lesson_packages: {
     title: string;
     total_lessons: number;
-    students: { name: string; default_location: string | null } | null;
+    students: {
+      id: string;
+      name: string;
+      default_location: string | null;
+      lat: number | null;
+      lng: number | null;
+    } | null;
   } | null;
 };
 
@@ -192,7 +206,7 @@ export default async function AgendaPage({
       lesson_packages (
         title,
         total_lessons,
-        students ( name, default_location )
+        students ( id, name, default_location, lat, lng )
       )
     `,
     )
@@ -200,16 +214,16 @@ export default async function AgendaPage({
     .lte("scheduled_at", rangeEnd.toISOString())
     .order("scheduled_at", { ascending: true });
 
-  const [{ data: lessons }, profile] = await Promise.all([
+  const [{ data: lessons }, schedule] = await Promise.all([
     lessonsPromise,
     view === "livres"
-      ? loadTeacherWindows(supabase)
-      : Promise.resolve(null),
+      ? loadTeacherSchedule(supabase)
+      : Promise.resolve({ windows: null, base: basePlace() }),
   ]);
 
   const allLessons = (lessons ?? []) as unknown as LessonRow[];
-  const teacherWindows = teacherWindowsFromStored(profile);
-  const windowsSaved = parseTeacherWindows(profile).ok;
+  const teacherWindows = teacherWindowsFromStored(schedule.windows);
+  const windowsSaved = parseTeacherWindows(schedule.windows).ok;
   const freeDays =
     view === "livres"
       ? buildWeekFreeHours({
@@ -230,6 +244,7 @@ export default async function AgendaPage({
                     }
                   : null,
               })),
+            schedule.base,
           ),
         })
       : [];

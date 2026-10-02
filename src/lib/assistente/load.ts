@@ -13,12 +13,15 @@ import {
   type RearrangeInput,
   type RearrangePlan,
 } from "@/lib/assistente/rearrange";
+import type { Coordinates } from "@/lib/geo/geocode";
+import { basePlace, type Place } from "@/lib/geo/travel";
 
 export type RearrangeContext = {
   weekLabel: string;
   fixed: OccupiedBlock[];
   moving: MovingStudent[];
   plan: RearrangePlan;
+  base: Coordinates | null;
 };
 
 export async function loadRearrangeContext(
@@ -33,7 +36,7 @@ export async function loadRearrangeContext(
     return { error: "Não foi possível ler a agenda desta semana" };
   }
 
-  const context = buildRearrangeContext(loaded.occupied, input);
+  const context = buildRearrangeContext(loaded.occupied, input, loaded.base);
   if (!context.ok) return { error: context.error };
 
   return {
@@ -41,12 +44,29 @@ export async function loadRearrangeContext(
       weekLabel: loaded.weekLabel,
       fixed: context.fixed,
       moving: context.moving,
-      plan: solveRearrangement(context.moving),
+      plan: solveRearrangement(context.moving, context.fixed, loaded.base),
+      base: loaded.base.coords,
     },
   };
 }
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
+
+export async function loadTeacherBase(
+  supabase: ServerClient,
+  teacherId: string,
+): Promise<Place> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("base_lat, base_lng")
+    .eq("id", teacherId)
+    .maybeSingle();
+  return basePlace(
+    data?.base_lat != null && data?.base_lng != null
+      ? { lat: data.base_lat, lng: data.base_lng }
+      : null,
+  );
+}
 
 export async function loadWeekOccupiedBlocks(
   supabase: ServerClient,
@@ -54,36 +74,41 @@ export async function loadWeekOccupiedBlocks(
   now = new Date(),
 ): Promise<{
   occupied: OccupiedBlock[];
+  base: Place;
   weekLabel: string;
   startYmd: string;
   endYmd: string;
 }> {
   const bounds = civilWeekBoundsSaoPaulo(now);
-  const { data, error } = await supabase
-    .from("lessons")
-    .select(
-      `
+  const [{ data, error }, base] = await Promise.all([
+    supabase
+      .from("lessons")
+      .select(
+        `
       id,
       scheduled_at,
       location,
       lesson_packages (
         title,
-        students ( id, name, default_location )
+        students ( id, name, default_location, lat, lng )
       )
     `,
-    )
-    .eq("teacher_id", teacherId)
-    .eq("status", "scheduled")
-    .gte("scheduled_at", bounds.start.toISOString())
-    .lte("scheduled_at", bounds.end.toISOString())
-    .order("scheduled_at", { ascending: true });
+      )
+      .eq("teacher_id", teacherId)
+      .eq("status", "scheduled")
+      .gte("scheduled_at", bounds.start.toISOString())
+      .lte("scheduled_at", bounds.end.toISOString())
+      .order("scheduled_at", { ascending: true }),
+    loadTeacherBase(supabase, teacherId),
+  ]);
 
   if (error) {
     throw new Error(error.message);
   }
 
   return {
-    occupied: buildOccupiedBlocks((data ?? []) as ScheduledLessonRow[]),
+    occupied: buildOccupiedBlocks((data ?? []) as ScheduledLessonRow[], base),
+    base,
     weekLabel: formatWeekLabel(bounds),
     startYmd: bounds.startYmd,
     endYmd: bounds.endYmd,

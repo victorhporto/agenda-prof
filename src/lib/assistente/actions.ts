@@ -33,7 +33,7 @@ export async function previewAssistenteContext(
   if (!user) return { error: "Não autenticado" };
 
   try {
-    const { occupied, weekLabel } = await loadWeekOccupiedBlocks(
+    const { occupied, weekLabel, base } = await loadWeekOccupiedBlocks(
       supabase,
       user.id,
     );
@@ -42,6 +42,7 @@ export async function previewAssistenteContext(
       teacherWindows: parsed.value.teacherWindows,
       occupied,
       location: parsed.value.location,
+      base,
     });
 
     return { data: { weekLabel, occupied, candidates } };

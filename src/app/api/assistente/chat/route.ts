@@ -48,12 +48,9 @@ export async function POST(request: Request) {
     );
   }
 
-  let occupied: Awaited<ReturnType<typeof loadWeekOccupiedBlocks>>["occupied"];
-  let weekLabel: string;
+  let loaded: Awaited<ReturnType<typeof loadWeekOccupiedBlocks>>;
   try {
-    const loaded = await loadWeekOccupiedBlocks(supabase, user.id);
-    occupied = loaded.occupied;
-    weekLabel = loaded.weekLabel;
+    loaded = await loadWeekOccupiedBlocks(supabase, user.id);
   } catch {
     return NextResponse.json(
       { error: "Não foi possível ler a agenda desta semana" },
@@ -61,11 +58,13 @@ export async function POST(request: Request) {
     );
   }
 
+  const { occupied, weekLabel, base } = loaded;
   const candidates = findCandidateSlots({
     studentSlots: parsed.value.studentSlots,
     teacherWindows: parsed.value.teacherWindows,
     occupied,
     location: parsed.value.location,
+    base,
   });
 
   return streamAssistantReply(
@@ -74,6 +73,7 @@ export async function POST(request: Request) {
       occupied,
       candidates,
       weekLabel,
+      hasBase: base.coords != null,
     }),
     turns,
   );

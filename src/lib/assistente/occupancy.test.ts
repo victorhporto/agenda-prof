@@ -15,6 +15,11 @@ import {
   teacherWindowsFromStored,
   type OccupiedBlock,
 } from "@/lib/assistente/occupancy";
+import { basePlace, studentPlace } from "@/lib/geo/travel";
+
+const VILA_MAZZEI = { lat: -23.4796813, lng: -46.6029076 };
+const TRAMWAY = { lat: -23.4834798, lng: -46.6099892 };
+const CONCEICAO = { lat: -23.5001193, lng: -46.6107279 };
 
 const occupied14h: OccupiedBlock = {
   weekday: 2,
@@ -160,7 +165,7 @@ describe("findCandidateSlots", () => {
       location: "online",
     });
 
-    expect(candidates).toEqual([
+    expect(candidates).toMatchObject([
       {
         weekday: 1,
         time: "11:00",
@@ -231,7 +236,7 @@ describe("findCandidateSlots", () => {
       occupied: [],
       location: "casa_aluno",
     });
-    expect(candidates).toEqual([
+    expect(candidates).toMatchObject([
       {
         weekday: 1,
         time: "10:00",
@@ -239,6 +244,41 @@ describe("findCandidateSlots", () => {
         occupiesEnd: "12:00",
       },
     ]);
+  });
+
+  it("com endereços, usa a distância real em vez de 1h fixa", () => {
+    const base = basePlace(VILA_MAZZEI);
+    const occupiedTramway: OccupiedBlock = {
+      ...occupied14h,
+      location: "casa_aluno",
+      studentId: "tramway",
+      place: studentPlace("tramway", TRAMWAY),
+    };
+    const near = findCandidateSlots({
+      studentSlots: [
+        { weekday: 2, time: "15:30" },
+        { weekday: 2, time: "15:00" },
+      ],
+      teacherWindows,
+      occupied: [occupiedTramway],
+      location: "casa_aluno",
+      place: studentPlace("conceicao", CONCEICAO),
+      base,
+    });
+    expect(near.map((slot) => slot.time)).toEqual(["15:30"]);
+    expect(near[0]?.travelBefore?.minutes).toBe(15);
+    expect(near[0]?.travelBefore?.km).toBeCloseTo(2.6, 1);
+  });
+
+  it("sem endereço do aluno novo, cai na estimativa de 1h", () => {
+    const candidates = findCandidateSlots({
+      studentSlots: [{ weekday: 2, time: "15:30" }],
+      teacherWindows,
+      occupied: [occupied14h],
+      location: "casa_aluno",
+      base: basePlace(VILA_MAZZEI),
+    });
+    expect(candidates).toEqual([]);
   });
 
   it("rejeita aula fora da disponibilidade do professor", () => {

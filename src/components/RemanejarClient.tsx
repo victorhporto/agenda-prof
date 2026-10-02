@@ -15,7 +15,10 @@ import {
   MAX_REARRANGE_STUDENTS,
   parseRearrangeInput,
   type RearrangeInput,
+  type WeekTravel,
 } from "@/lib/assistente/rearrange";
+import { formatMinutesLabel } from "@/lib/assistente/free-hours";
+import { formatKm } from "@/lib/geo/travel";
 import { StudentSlotsEditor } from "@/components/StudentSlotsEditor";
 import {
   ChatComposer,
@@ -37,6 +40,11 @@ const FIRST_USER_MESSAGE =
 
 function formatSlots(slots: { weekday: StudentSlot["weekday"]; time: string }[]) {
   return slots.map((slot) => `${WEEKDAY_SHORT[slot.weekday]} ${slot.time}`).join(" · ");
+}
+
+function formatWeekTravel(travel: WeekTravel) {
+  const km = travel.km > 0 ? ` (${formatKm(travel.km)})` : "";
+  return `${formatMinutesLabel(travel.minutes)}${km}`;
 }
 
 export function RemanejarClient({
@@ -191,6 +199,12 @@ export function RemanejarClient({
               {plan.placedLessons} de {plan.totalLessons} aulas encaixadas
             </p>
           </div>
+          {plan.currentTravel.minutes > 0 || plan.proposedTravel.minutes > 0 ? (
+            <p className="text-[var(--ink-muted)]">
+              Deslocamento semanal estimado: {formatWeekTravel(plan.currentTravel)}{" "}
+              → {formatWeekTravel(plan.proposedTravel)}
+            </p>
+          ) : null}
           <ul className="space-y-2">
             {plan.entries.map((entry) => {
               const student = context.moving.find(

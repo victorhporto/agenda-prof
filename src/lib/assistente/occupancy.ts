@@ -7,6 +7,17 @@ import {
   effectiveLocation,
   type LessonLocation,
 } from "@/lib/lessons/location";
+import {
+  NO_TRAVEL,
+  basePlace,
+  checkInsertion,
+  estimateTravel,
+  isBase,
+  studentPlace,
+  type Place,
+  type RouteStop,
+  type TravelEstimate,
+} from "@/lib/geo/travel";
 
 export {
   LOCATION_LABELS,
@@ -67,6 +78,11 @@ export type OccupiedBlock = {
   packageTitle: string;
   lessonId: string;
   scheduledAt: string;
+  place?: Place;
+  /** Deslocamento desde a aula anterior do dia (ou desde a base). */
+  travelBefore?: TravelEstimate;
+  /** Volta para a base: depois da última aula ou antes de uma aula na base. */
+  travelAfter?: TravelEstimate;
 };
 
 export type CandidateSlot = {
@@ -74,6 +90,11 @@ export type CandidateSlot = {
   time: string;
   occupiesStart: string;
   occupiesEnd: string;
+  travelBefore?: TravelEstimate;
+  travelAfter?: TravelEstimate;
+  /** Deslocamento que este horário acrescenta ao dia do professor. */
+  extraTravelMinutes?: number;
+  extraTravelKm?: number;
 };
 
 export type AssistenteFormInput = {
@@ -94,6 +115,8 @@ export type ScheduledLessonRow = {
       id?: string;
       name: string;
       default_location?: string | null;
+      lat?: number | null;
+      lng?: number | null;
     } | null;
   } | null;
 };
@@ -222,19 +245,121 @@ export function conflictsWithOccupied(
   return null;
 }
 
+/** Aulas sem local cadastrado contam como na base, como online. */
+export function placeForLocation(
+  location: LessonLocation | null,
+  base: Place,
+  student: Place,
+): Place {
+  return location === "casa_aluno" ? student : base;
+}
+
+export function blockPlace(block: OccupiedBlock, base: Place): Place {
+  return (
+    block.place ??
+    placeForLocation(
+      block.location,
+      base,
+      studentPlace(block.studentId ?? block.lessonId),
+    )
+  );
+}
+
+export function routeStopsForDay(
+  blocks: OccupiedBlock[],
+  weekday: Weekday,
+  base: Place,
+): RouteStop[] {
+  const stops: RouteStop[] = [];
+  for (const block of blocks) {
+    if (block.weekday !== weekday) continue;
+    const start = parseTimeToMinutes(block.start);
+    if (start == null) continue;
+    stops.push({
+      start,
+      end: start + LESSON_DURATION_MINUTES,
+      place: blockPlace(block, base),
+    });
+  }
+  return stops.sort((a, b) => a.start - b.start);
+}
+
+/**
+ * Preenche o deslocamento de cada aula seguindo a ordem do dia:
+ * base → aula 1 → aula 2 → … → base.
+ */
+export function withDayTravel(
+  blocks: OccupiedBlock[],
+  base: Place,
+): OccupiedBlock[] {
+  const byDay = new Map<Weekday, OccupiedBlock[]>();
+  for (const block of blocks) {
+    const day = byDay.get(block.weekday) ?? [];
+    day.push(block);
+    byDay.set(block.weekday, day);
+  }
+
+  const result: OccupiedBlock[] = [];
+  for (const day of byDay.values()) {
+    day.sort((a, b) => a.start.localeCompare(b.start));
+    const places = day.map((block) => blockPlace(block, base));
+    // A volta para a base sai logo depois da aula, não antes da próxima.
+    const travels = places.map((place, index) => {
+      const previous = index > 0 ? places[index - 1]! : base;
+      const next = index < places.length - 1 ? places[index + 1]! : base;
+      const goingHome = isBase(next) && !isBase(place);
+      return {
+        before: isBase(place) ? NO_TRAVEL : estimateTravel(previous, place),
+        after:
+          goingHome || index === places.length - 1
+            ? estimateTravel(place, base)
+            : NO_TRAVEL,
+      };
+    });
+    day.forEach((block, index) => {
+      const { before, after } = travels[index]!;
+      const start = parseTimeToMinutes(block.start) ?? 0;
+      result.push({
+        ...block,
+        place: places[index]!,
+        travelBefore: before,
+        travelAfter: after,
+        occupiesStart: minutesToTime(Math.max(0, start - before.minutes)),
+        occupiesEnd: minutesToTime(
+          Math.min(24 * 60 - 1, start + LESSON_DURATION_MINUTES + after.minutes),
+        ),
+      });
+    });
+  }
+  return result.sort(
+    (a, b) => a.weekday - b.weekday || a.start.localeCompare(b.start),
+  );
+}
+
 export function buildOccupiedBlocks(
   lessons: ScheduledLessonRow[],
+  base: Place = basePlace(),
 ): OccupiedBlock[] {
-  return lessons
-    .map((lesson) => {
+  const blocks = lessons
+    .map((lesson): OccupiedBlock | null => {
       const startMinutes = timeToMinutesFromIso(lesson.scheduled_at);
       if (startMinutes == null) return null;
       const weekday = isoWeekdayFromIso(lesson.scheduled_at);
       if (!weekday) return null;
       const pkg = lesson.lesson_packages;
+      const student = pkg?.students;
       const location = effectiveLocation(
         lesson.location,
-        pkg?.students?.default_location,
+        student?.default_location,
+      );
+      const coords =
+        student?.lat != null && student?.lng != null
+          ? { lat: student.lat, lng: student.lng }
+          : null;
+      const place = placeForLocation(
+        location,
+        base,
+        studentPlace(student?.id ?? lesson.id, coords),
       );
       const occupies = occupiesRange(startMinutes, location);
       return {
@@ -244,15 +369,17 @@ export function buildOccupiedBlocks(
         occupiesStart: minutesToTime(occupies.start),
         occupiesEnd: minutesToTime(occupies.end),
         location,
-        ...(pkg?.students?.id ? { studentId: pkg.students.id } : {}),
-        studentName: pkg?.students?.name ?? "Aluno",
+        ...(student?.id ? { studentId: student.id } : {}),
+        studentName: student?.name ?? "Aluno",
         packageTitle: pkg?.title ?? "Pacote",
         lessonId: lesson.id,
         scheduledAt: lesson.scheduled_at,
-      } satisfies OccupiedBlock;
+        place,
+      };
     })
-    .filter((block): block is OccupiedBlock => block != null)
-    .sort((a, b) => a.weekday - b.weekday || a.start.localeCompare(b.start));
+    .filter((block): block is OccupiedBlock => block != null);
+
+  return withDayTravel(blocks, base);
 }
 
 export function findCandidateSlots(input: {
@@ -260,9 +387,19 @@ export function findCandidateSlots(input: {
   teacherWindows: TeacherWindow[];
   occupied: OccupiedBlock[];
   location: LessonLocation;
+  /** Onde fica o aluno; sem isso, vale a estimativa padrão de deslocamento. */
+  place?: Place;
+  base?: Place;
 }): CandidateSlot[] {
+  const base = input.base ?? basePlace();
+  const place = placeForLocation(
+    input.location,
+    base,
+    input.place ?? studentPlace("novo"),
+  );
   const seen = new Set<string>();
   const candidates: CandidateSlot[] = [];
+  const stopsByDay = new Map<Weekday, RouteStop[]>();
 
   for (const slot of input.studentSlots) {
     if (!isWeekday(slot.weekday)) continue;
@@ -277,23 +414,32 @@ export function findCandidateSlots(input: {
       continue;
     }
 
-    const occupies = occupiesRange(lessonStart, input.location);
-    if (
-      conflictsWithOccupied(
-        occupies.start,
-        occupies.end,
-        slot.weekday,
-        input.occupied,
-      )
-    ) {
-      continue;
+    let stops = stopsByDay.get(slot.weekday);
+    if (!stops) {
+      stops = routeStopsForDay(input.occupied, slot.weekday, base);
+      stopsByDay.set(slot.weekday, stops);
     }
+    const fit = checkInsertion(
+      stops,
+      { start: lessonStart, end: lessonStart + LESSON_DURATION_MINUTES, place },
+      base,
+    );
+    if (!fit.ok) continue;
 
     candidates.push({
       weekday: slot.weekday,
       time,
-      occupiesStart: minutesToTime(occupies.start),
-      occupiesEnd: minutesToTime(occupies.end),
+      occupiesStart: minutesToTime(Math.max(0, lessonStart - fit.before.minutes)),
+      occupiesEnd: minutesToTime(
+        Math.min(
+          24 * 60 - 1,
+          lessonStart + LESSON_DURATION_MINUTES + fit.after.minutes,
+        ),
+      ),
+      travelBefore: fit.before,
+      travelAfter: fit.after,
+      extraTravelMinutes: fit.extraMinutes,
+      extraTravelKm: fit.extraKm,
     });
   }
 

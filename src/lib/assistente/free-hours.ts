@@ -9,6 +9,7 @@ import {
   type TeacherWindow,
   type Weekday,
 } from "@/lib/assistente/occupancy";
+import { formatTravel, isBase, type TravelEstimate } from "@/lib/geo/travel";
 
 export type TimelineKind = "free" | "lesson" | "travel" | "outside";
 
@@ -22,6 +23,9 @@ export type TimelineSegment = {
   lessonId?: string;
   location?: LessonLocation | null;
   travelSide?: "before" | "after";
+  travel?: TravelEstimate;
+  /** Deslocamento de volta para a base (antes de aula online/na base ou no fim do dia). */
+  travelToBase?: boolean;
 };
 
 export type DayFreeHours = {
@@ -97,7 +101,13 @@ function spansForDay(
       const lessonStart = parseTimeToMinutes(block.start);
       const lessonEnd = parseTimeToMinutes(block.end);
       if (lessonStart == null || lessonEnd == null) return null;
-      const occupy = occupiesRange(lessonStart, block.location);
+      const occupy =
+        block.travelBefore && block.travelAfter
+          ? {
+              start: lessonStart - block.travelBefore.minutes,
+              end: lessonEnd + block.travelAfter.minutes,
+            }
+          : occupiesRange(lessonStart, block.location);
       return {
         block,
         lesson: { start: lessonStart, end: lessonEnd },
@@ -166,7 +176,14 @@ function classifyInterval(
   if (travelSpan) {
     const travelSide: "before" | "after" =
       end <= travelSpan.lesson.start ? "before" : "after";
+    const block = travelSpan.block;
+    const travel =
+      travelSide === "before" ? block.travelBefore : block.travelAfter;
+    const travelToBase =
+      travelSide === "after" || (block.place ? isBase(block.place) : false);
     return {
+      ...(travel ? { travel } : {}),
+      travelToBase,
       weekday,
       start: formatClock(start),
       end: formatClock(end),
@@ -336,9 +353,21 @@ export function weekFreeMinutes(days: DayFreeHours[]): number {
 
 export function travelLabel(segment: TimelineSegment): string {
   const name = segment.studentName ?? "aluno";
-  if (segment.travelSide === "before") return `Deslocamento até ${name}`;
-  if (segment.travelSide === "after") return `Deslocamento após ${name}`;
-  return `Locomoção · ${name}`;
+  if (segment.travelSide === "before") {
+    return segment.travelToBase
+      ? `Volta para a base antes de ${name}`
+      : `Deslocamento até ${name}`;
+  }
+  if (segment.travelSide === "after") return `Volta para a base após ${name}`;
+  return `Deslocamento · ${name}`;
+}
+
+export function travelDetail(segment: TimelineSegment): string {
+  const travel = segment.travel;
+  if (!travel || travel.km == null) {
+    return `Deslocamento ~${travel?.minutes ?? 60} min · estimativa padrão (falta endereço)`;
+  }
+  return `Deslocamento ${formatTravel(travel)}`;
 }
 
 export function lessonPlaceLabel(location: LessonLocation | null | undefined) {

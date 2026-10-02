@@ -5,6 +5,7 @@ import {
   lessonPlaceLabel,
   segmentDurationMinutes,
   segmentOutsideWorkWindows,
+  travelDetail,
   travelLabel,
   weekFreeMinutes,
   type DayFreeHours,
@@ -43,9 +44,7 @@ function segmentDetail(
   if (segment.kind === "outside") {
     return "Intervalo fora do horário cadastrado no perfil";
   }
-  if (segment.kind === "travel") {
-    return "1h de locomoção (casa do aluno)";
-  }
+  if (segment.kind === "travel") return travelDetail(segment);
   const place = lessonPlaceLabel(segment.location);
   const pkg = segment.packageTitle;
   const detail = [pkg, place].filter(Boolean).join(" · ");
@@ -173,15 +172,16 @@ export function FreeHoursPanel({
           </div>
           <p className="text-sm text-[var(--ink-muted)]">
             {travelDays
-              ? `${travelDays} dia${travelDays === 1 ? "" : "s"} com locomoção`
-              : "Nenhuma locomoção nesta semana"}
+              ? `${travelDays} dia${travelDays === 1 ? "" : "s"} com deslocamento`
+              : "Nenhum deslocamento nesta semana"}
           </p>
         </div>
         <p className="text-sm text-[var(--ink-muted)]">
           Cruza as aulas da semana com o horário do perfil. Aulas fora dessa
           janela não reduzem as horas livres — aparecem como fora do
-          atendimento. Na casa do aluno, 1h antes e 1h depois entram como
-          deslocamento.
+          atendimento. O deslocamento é estimado pela distância entre o seu
+          ponto de partida e a casa de cada aluno, na ordem das aulas do dia;
+          sem endereço, conta 1h.
         </p>
         <p className="text-sm">
           <span className="font-medium">Atendimento:</span> {windowsSummary}
@@ -197,7 +197,7 @@ export function FreeHoursPanel({
           <li className="slot-free rounded-full px-2.5 py-1">Livre</li>
           <li className="slot-lesson rounded-full px-2.5 py-1">Aula</li>
           <li className="slot-travel rounded-full px-2.5 py-1">
-            Locomoção (casa do aluno)
+            Deslocamento
           </li>
           <li className="slot-outside rounded-full px-2.5 py-1">
             Fora do atendimento
