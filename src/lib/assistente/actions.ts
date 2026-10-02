@@ -1,7 +1,12 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { loadWeekOccupiedBlocks } from "@/lib/assistente/load";
+import {
+  loadRearrangeContext,
+  loadWeekOccupiedBlocks,
+  type RearrangeContext,
+} from "@/lib/assistente/load";
+import { parseRearrangeInput } from "@/lib/assistente/rearrange";
 import {
   findCandidateSlots,
   parseAssistenteFormInput,
@@ -43,4 +48,19 @@ export async function previewAssistenteContext(
   } catch {
     return { error: "Não foi possível ler a agenda desta semana" };
   }
+}
+
+export async function previewRearrangeContext(
+  raw: unknown,
+): Promise<{ data: RearrangeContext } | { error: string }> {
+  const parsed = parseRearrangeInput(raw);
+  if (!parsed.ok) return { error: parsed.error };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  return loadRearrangeContext(supabase, user.id, parsed.value);
 }

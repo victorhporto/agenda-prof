@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { loadWeekOccupiedBlocks } from "@/lib/assistente/load";
-import {
-  findCandidateSlots,
-  parseAssistenteFormInput,
-} from "@/lib/assistente/occupancy";
-import { buildSystemPrompt, parseChatTurns } from "@/lib/assistente/prompt";
+import { loadRearrangeContext } from "@/lib/assistente/load";
+import { parseRearrangeInput } from "@/lib/assistente/rearrange";
+import { buildRearrangePrompt, parseChatTurns } from "@/lib/assistente/prompt";
 import {
   assistantApiKeyMissing,
   streamAssistantReply,
@@ -35,7 +32,7 @@ export async function POST(request: Request) {
   }
 
   const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-  const parsed = parseAssistenteFormInput(payload.context);
+  const parsed = parseRearrangeInput(payload.context);
   if (!parsed.ok) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
@@ -48,32 +45,15 @@ export async function POST(request: Request) {
     );
   }
 
-  let occupied: Awaited<ReturnType<typeof loadWeekOccupiedBlocks>>["occupied"];
-  let weekLabel: string;
-  try {
-    const loaded = await loadWeekOccupiedBlocks(supabase, user.id);
-    occupied = loaded.occupied;
-    weekLabel = loaded.weekLabel;
-  } catch {
-    return NextResponse.json(
-      { error: "Não foi possível ler a agenda desta semana" },
-      { status: 500 },
-    );
+  const loaded = await loadRearrangeContext(supabase, user.id, parsed.value);
+  if ("error" in loaded) {
+    return NextResponse.json({ error: loaded.error }, { status: 400 });
   }
 
-  const candidates = findCandidateSlots({
-    studentSlots: parsed.value.studentSlots,
-    teacherWindows: parsed.value.teacherWindows,
-    occupied,
-    location: parsed.value.location,
-  });
-
   return streamAssistantReply(
-    buildSystemPrompt({
-      form: parsed.value,
-      occupied,
-      candidates,
-      weekLabel,
+    buildRearrangePrompt({
+      teacherWindows: parsed.value.teacherWindows,
+      ...loaded.data,
     }),
     turns,
   );

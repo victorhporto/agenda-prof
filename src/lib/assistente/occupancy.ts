@@ -62,6 +62,7 @@ export type OccupiedBlock = {
   occupiesStart: string;
   occupiesEnd: string;
   location: LessonLocation | null;
+  studentId?: string;
   studentName: string;
   packageTitle: string;
   lessonId: string;
@@ -90,6 +91,7 @@ export type ScheduledLessonRow = {
   lesson_packages: {
     title: string;
     students: {
+      id?: string;
       name: string;
       default_location?: string | null;
     } | null;
@@ -242,6 +244,7 @@ export function buildOccupiedBlocks(
         occupiesStart: minutesToTime(occupies.start),
         occupiesEnd: minutesToTime(occupies.end),
         location,
+        ...(pkg?.students?.id ? { studentId: pkg.students.id } : {}),
         studentName: pkg?.students?.name ?? "Aluno",
         packageTitle: pkg?.title ?? "Pacote",
         lessonId: lesson.id,

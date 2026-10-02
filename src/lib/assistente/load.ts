@@ -6,6 +6,45 @@ import {
   type OccupiedBlock,
   type ScheduledLessonRow,
 } from "@/lib/assistente/occupancy";
+import {
+  buildRearrangeContext,
+  solveRearrangement,
+  type MovingStudent,
+  type RearrangeInput,
+  type RearrangePlan,
+} from "@/lib/assistente/rearrange";
+
+export type RearrangeContext = {
+  weekLabel: string;
+  fixed: OccupiedBlock[];
+  moving: MovingStudent[];
+  plan: RearrangePlan;
+};
+
+export async function loadRearrangeContext(
+  supabase: ServerClient,
+  teacherId: string,
+  input: RearrangeInput,
+): Promise<{ data: RearrangeContext } | { error: string }> {
+  let loaded: Awaited<ReturnType<typeof loadWeekOccupiedBlocks>>;
+  try {
+    loaded = await loadWeekOccupiedBlocks(supabase, teacherId);
+  } catch {
+    return { error: "Não foi possível ler a agenda desta semana" };
+  }
+
+  const context = buildRearrangeContext(loaded.occupied, input);
+  if (!context.ok) return { error: context.error };
+
+  return {
+    data: {
+      weekLabel: loaded.weekLabel,
+      fixed: context.fixed,
+      moving: context.moving,
+      plan: solveRearrangement(context.moving),
+    },
+  };
+}
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -29,7 +68,7 @@ export async function loadWeekOccupiedBlocks(
       location,
       lesson_packages (
         title,
-        students ( name, default_location )
+        students ( id, name, default_location )
       )
     `,
     )
