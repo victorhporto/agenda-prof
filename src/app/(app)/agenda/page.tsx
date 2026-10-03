@@ -269,9 +269,6 @@ export default async function AgendaPage({
           ),
         })
       : [];
-  const idealDays = ideal
-    ? buildWeekFreeHours({ teacherWindows, occupied: ideal })
-    : [];
   const lessonRows = applyLessonFilters(allLessons, filtro, q, now);
   const todayKey = todayYmdSaoPaulo();
 
@@ -396,7 +393,9 @@ export default async function AgendaPage({
 
       {view === "ideal" ? (
         <IdealWeekPanel
-          days={idealDays}
+          initialBlocks={ideal ?? []}
+          teacherWindows={teacherWindows}
+          base={schedule.base}
           windowsSummary={summarizeTeacherWindows(teacherWindows)}
           windowsSaved={windowsSaved}
         />

@@ -151,3 +151,43 @@ export async function suggestReservedSlotsForStudent(
 
   return { slots: suggestReservedSlots(data ?? []) };
 }
+
+/** Grava a grade ideal arrastada: só a reserva dos alunos alterados; aulas não mudam. */
+export async function saveReservedGrid(
+  raw: unknown,
+): Promise<{ success: true; saved: number } | { error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return { error: "Nenhuma alteração para salvar" };
+  }
+  if (raw.length > 200) return { error: "Alterações demais de uma vez" };
+
+  const updates: { studentId: string; slots: StudentSlot[] }[] = [];
+  for (const item of raw) {
+    const row = (item ?? {}) as Record<string, unknown>;
+    const studentId = typeof row.studentId === "string" ? row.studentId : "";
+    if (!studentId) return { error: "Aluno inválido" };
+    const slots = parseReservedSlots(row.slots);
+    if (!slots.ok) return { error: slots.error };
+    updates.push({ studentId, slots: slots.value });
+  }
+
+  for (const update of updates) {
+    const { error } = await supabase
+      .from("students")
+      .update({ reserved_slots: update.slots as Json })
+      .eq("id", update.studentId)
+      .eq("teacher_id", user.id);
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/agenda");
+  revalidatePath("/alunos");
+  revalidatePath("/assistente");
+  return { success: true, saved: updates.length };
+}
