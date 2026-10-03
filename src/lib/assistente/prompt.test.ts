@@ -101,7 +101,10 @@ describe("buildRearrangePrompt", () => {
     ];
     const input = {
       students: [
-        { studentId: "c", studentSlots: [{ weekday: 2 as const, time: "16:00" }] },
+        {
+          studentId: "c",
+          ranges: [{ weekday: 2 as const, start: "16:00", end: "17:00" }],
+        },
       ],
       teacherWindows: defaultTeacherWindows(),
     };
@@ -119,6 +122,7 @@ describe("buildRearrangePrompt", () => {
     expect(prompt).toContain("- Teste 2: base do professor 3,4 km, Teste 1 2,6 km");
     expect(prompt).toContain("Deslocamento semanal estimado: atual");
     expect(prompt).toContain("deslocamento antes ~15 min (2,6 km)");
+    expect(prompt).toContain("Terça das 16:00 às 17:00");
     expect(prompt).not.toMatch(/Rua|Avenida|-23\.|-46\./);
   });
 });

@@ -9,8 +9,12 @@ import {
 } from "@/lib/assistente/occupancy";
 import {
   buildRearrangeContext,
+  parseAvailabilityRanges,
   parseRearrangeInput,
+  rangeForLesson,
+  slotsFromRanges,
   solveRearrangement,
+  type AvailabilityRange,
 } from "@/lib/assistente/rearrange";
 import type { LessonLocation } from "@/lib/lessons/location";
 import { basePlace, studentPlace } from "@/lib/geo/travel";
@@ -47,11 +51,21 @@ function block(
 
 function solve(
   occupied: OccupiedBlock[],
-  students: { studentId: string; studentSlots: { weekday: Weekday; time: string }[] }[],
+  students: {
+    studentId: string;
+    studentSlots?: { weekday: Weekday; time: string }[];
+    ranges?: AvailabilityRange[];
+  }[],
 ) {
   const context = buildRearrangeContext(
     occupied,
-    { students, teacherWindows },
+    {
+      students: students.map((student) => ({
+        studentId: student.studentId,
+        ranges: student.ranges ?? (student.studentSlots ?? []).map(rangeForLesson),
+      })),
+      teacherWindows,
+    },
     base,
   );
   if (!context.ok) throw new Error(context.error);
@@ -78,7 +92,7 @@ describe("parseRearrangeInput", () => {
     expect(parseRearrangeInput({ students: [], teacherWindows }).ok).toBe(false);
     expect(
       parseRearrangeInput({
-        students: [{ studentId: "a", studentSlots: [] }],
+        students: [{ studentId: "a", ranges: [] }],
         teacherWindows,
       }).ok,
     ).toBe(false);
@@ -87,12 +101,51 @@ describe("parseRearrangeInput", () => {
   it("ignora aluno repetido", () => {
     const parsed = parseRearrangeInput({
       students: [
-        { studentId: "a", studentSlots: [{ weekday: 1, time: "10:00" }] },
-        { studentId: "a", studentSlots: [{ weekday: 2, time: "10:00" }] },
+        { studentId: "a", ranges: [{ weekday: 1, start: "10:00", end: "12:00" }] },
+        { studentId: "a", ranges: [{ weekday: 2, start: "10:00", end: "12:00" }] },
       ],
       teacherWindows,
     });
     expect(parsed.ok && parsed.value.students).toHaveLength(1);
+  });
+});
+
+describe("faixas de disponibilidade", () => {
+  it("expande a faixa em inícios a cada 15 min em que a aula cabe", () => {
+    const slots = slotsFromRanges([
+      { weekday: 5, start: "10:00", end: "11:30" },
+      { weekday: 1, start: "13:00", end: "14:00" },
+    ]);
+    expect(slots.map((slot) => `${slot.weekday} ${slot.time}`)).toEqual([
+      "5 10:00",
+      "5 10:15",
+      "5 10:30",
+      "1 13:00",
+    ]);
+  });
+
+  it("valida faixas: fim depois do início e pelo menos 1 hora", () => {
+    expect(parseAvailabilityRanges([]).ok).toBe(false);
+    expect(
+      parseAvailabilityRanges([{ weekday: 5, start: "15:00", end: "10:00" }]).ok,
+    ).toBe(false);
+    expect(
+      parseAvailabilityRanges([{ weekday: 5, start: "10:00", end: "10:45" }]).ok,
+    ).toBe(false);
+    const parsed = parseAvailabilityRanges([
+      { weekday: "5", start: "10:00:00", end: "15:00" },
+    ]);
+    expect(parsed.ok && parsed.value).toEqual([
+      { weekday: 5, start: "10:00", end: "15:00" },
+    ]);
+  });
+
+  it("a faixa da aula atual equivale ao horário atual", () => {
+    expect(rangeForLesson({ weekday: 2, time: "14:00" })).toEqual({
+      weekday: 2,
+      start: "14:00",
+      end: "15:00",
+    });
   });
 });
 
@@ -108,7 +161,7 @@ describe("buildRearrangeContext", () => {
 
   it("recusa aluno sem aula na semana", () => {
     const context = buildRearrangeContext([block("a", 1, "10:00")], {
-      students: [{ studentId: "x", studentSlots: [{ weekday: 1, time: "10:00" }] }],
+      students: [{ studentId: "x", ranges: [{ weekday: 1, start: "10:00", end: "11:00" }] }],
       teacherWindows,
     });
     expect(context.ok).toBe(false);
@@ -167,6 +220,31 @@ describe("solveRearrangement", () => {
     expect(plan.placedLessons).toBe(2);
     const b = plan.entries.find((entry) => entry.studentId === "b");
     expect(b?.slots[0]?.time).toBe("18:00");
+  });
+
+  it("acha um horário livre dentro das faixas (sex 10–15 + seg 13–18)", () => {
+    const { plan } = solve(
+      [
+        block("a", 3, "10:00"),
+        block("b", 5, "10:00"),
+        block("c", 5, "11:00"),
+        block("d", 5, "12:00"),
+        block("e", 5, "13:00"),
+        block("f", 1, "13:00"),
+      ],
+      [
+        {
+          studentId: "a",
+          ranges: [
+            { weekday: 5, start: "10:00", end: "15:00" },
+            { weekday: 1, start: "13:00", end: "18:00" },
+          ],
+        },
+      ],
+    );
+    expect(plan.placedLessons).toBe(1);
+    const slot = plan.entries[0]?.slots[0];
+    expect(`${slot?.weekday} ${slot?.time}`).toBe("1 14:00");
   });
 
   it("coloca no máximo uma aula por dia por aluno e aponta o que falta", () => {

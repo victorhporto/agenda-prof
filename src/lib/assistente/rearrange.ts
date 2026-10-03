@@ -4,7 +4,6 @@ import {
   blockPlace,
   findCandidateSlots,
   minutesToTime,
-  parseStudentSlots,
   parseTeacherWindows,
   parseTimeToMinutes,
   placeForLocation,
@@ -29,11 +28,73 @@ import {
 
 export const MAX_REARRANGE_STUDENTS = 10;
 const MAX_SEARCH_NODES = 200_000;
+const MAX_RANGES_PER_STUDENT = 14;
+/** Intervalo entre os inícios possíveis dentro de uma faixa. */
+export const RANGE_STEP_MINUTES = 15;
+
+/** Faixa em que o aluno pode ter aula: a aula inteira precisa caber nela. */
+export type AvailabilityRange = { weekday: Weekday; start: string; end: string };
 
 export type RearrangeInput = {
-  students: { studentId: string; studentSlots: StudentSlot[] }[];
+  students: { studentId: string; ranges: AvailabilityRange[] }[];
   teacherWindows: TeacherWindow[];
 };
+
+export function slotsFromRanges(ranges: AvailabilityRange[]): StudentSlot[] {
+  const seen = new Set<string>();
+  const slots: StudentSlot[] = [];
+  for (const range of ranges) {
+    const start = parseTimeToMinutes(range.start);
+    const end = parseTimeToMinutes(range.end);
+    if (start == null || end == null) continue;
+    for (let time = start; time + LESSON_DURATION_MINUTES <= end; time += RANGE_STEP_MINUTES) {
+      const key = `${range.weekday}-${time}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      slots.push({ weekday: range.weekday, time: minutesToTime(time) });
+    }
+  }
+  return slots;
+}
+
+/** Faixa de exatamente uma aula começando no horário atual. */
+export function rangeForLesson(slot: StudentSlot): AvailabilityRange {
+  const start = parseTimeToMinutes(slot.time) ?? 0;
+  return {
+    weekday: slot.weekday,
+    start: minutesToTime(start),
+    end: minutesToTime(Math.min(start + LESSON_DURATION_MINUTES, 24 * 60 - 1)),
+  };
+}
+
+export function parseAvailabilityRanges(
+  raw: unknown,
+): { ok: true; value: AvailabilityRange[] } | { ok: false; error: string } {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return { ok: false, error: "Informe pelo menos uma faixa de horário do aluno" };
+  }
+  if (raw.length > MAX_RANGES_PER_STUDENT) {
+    return { ok: false, error: "Muitas faixas de horário para um aluno" };
+  }
+  const windows = parseTeacherWindows(raw);
+  if (!windows.ok) {
+    return {
+      ok: false,
+      error: "Cada faixa do aluno precisa de dia, início e fim (fim depois do início)",
+    };
+  }
+  for (const range of windows.value) {
+    const start = parseTimeToMinutes(range.start)!;
+    const end = parseTimeToMinutes(range.end)!;
+    if (end - start < LESSON_DURATION_MINUTES) {
+      return {
+        ok: false,
+        error: "Cada faixa do aluno precisa ter pelo menos 1 hora (a duração da aula)",
+      };
+    }
+  }
+  return { ok: true, value: windows.value };
+}
 
 export type MovingStudent = {
   studentId: string;
@@ -42,7 +103,7 @@ export type MovingStudent = {
   place: Place;
   lessonsPerWeek: number;
   current: OccupiedBlock[];
-  studentSlots: StudentSlot[];
+  ranges: AvailabilityRange[];
   candidates: CandidateSlot[];
 };
 
@@ -97,9 +158,9 @@ export function parseRearrangeInput(
     if (seen.has(studentId)) continue;
     seen.add(studentId);
 
-    const slots = parseStudentSlots(row.studentSlots);
-    if (!slots.ok) return slots;
-    students.push({ studentId, studentSlots: slots.value });
+    const ranges = parseAvailabilityRanges(row.ranges);
+    if (!ranges.ok) return ranges;
+    students.push({ studentId, ranges: ranges.value });
   }
 
   const windows = parseTeacherWindows(data.teacherWindows);
@@ -180,11 +241,11 @@ export function buildRearrangeContext(
       place: placeForLocation(location, base, home),
       lessonsPerWeek: current.length,
       current,
-      studentSlots: student.studentSlots,
+      ranges: student.ranges,
       candidates: [],
     };
     movingStudent.candidates = findCandidateSlots({
-      studentSlots: student.studentSlots,
+      studentSlots: slotsFromRanges(student.ranges),
       teacherWindows: input.teacherWindows,
       occupied: fixed,
       location: location ?? "online",

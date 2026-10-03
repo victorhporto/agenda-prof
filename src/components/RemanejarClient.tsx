@@ -14,12 +14,14 @@ import {
 import {
   MAX_REARRANGE_STUDENTS,
   parseRearrangeInput,
+  rangeForLesson,
+  type AvailabilityRange,
   type RearrangeInput,
   type WeekTravel,
 } from "@/lib/assistente/rearrange";
 import { formatMinutesLabel } from "@/lib/assistente/free-hours";
 import { formatKm } from "@/lib/geo/travel";
-import { StudentSlotsEditor } from "@/components/StudentSlotsEditor";
+import { AvailabilityRangesEditor } from "@/components/AvailabilityRangesEditor";
 import {
   ChatComposer,
   ChatThread,
@@ -57,7 +59,7 @@ export function RemanejarClient({
   weekLabel: string;
 }) {
   const [step, setStep] = useState<"form" | "chat">("form");
-  const [availability, setAvailability] = useState<Record<string, StudentSlot[]>>({});
+  const [availability, setAvailability] = useState<Record<string, AvailabilityRange[]>>({});
   const [context, setContext] = useState<RearrangeContext | null>(null);
   const [inputSnapshot, setInputSnapshot] = useState<RearrangeInput | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -79,7 +81,7 @@ export function RemanejarClient({
         return next;
       }
       if (Object.keys(current).length >= MAX_REARRANGE_STUDENTS) return current;
-      return { ...current, [student.id]: student.lessons.map((slot) => ({ ...slot })) };
+      return { ...current, [student.id]: student.lessons.map(rangeForLesson) };
     });
   }
 
@@ -102,7 +104,7 @@ export function RemanejarClient({
     const parsed = parseRearrangeInput({
       students: selectedIds.map((studentId) => ({
         studentId,
-        studentSlots: availability[studentId],
+        ranges: availability[studentId],
       })),
       teacherWindows,
     });
@@ -281,8 +283,9 @@ export function RemanejarClient({
           Quais alunos você quer trocar de horário?
         </p>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          Grade de {weekLabel}. Para cada aluno, confirme os horários em que
-          ele pode ter aula — os atuais já vêm preenchidos. Os demais alunos
+          Grade de {weekLabel}. Para cada aluno, informe as faixas em que
+          ele pode ter aula (ex.: sexta das 10h às 15h + segunda das 13h às
+          18h) — a aula atual já vem preenchida. Os demais alunos
           ficam onde estão.
         </p>
       </div>
@@ -316,7 +319,7 @@ export function RemanejarClient({
               </label>
               {selected ? (
                 <div className="mt-3 pl-7">
-                  <StudentSlotsEditor
+                  <AvailabilityRangesEditor
                     value={availability[student.id] ?? []}
                     onChange={(next) =>
                       setAvailability((current) => ({

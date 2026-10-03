@@ -193,6 +193,9 @@ ${[newStudentTravel, baseNote].filter(Boolean).join("\n")}
 - Quando listar opções, comece pela melhor e explique o porquê em 2–4 frases.`;
 }
 
+/** Faixas largas geram muitos inícios; a IA recebe os melhores primeiro. */
+const MAX_PROMPT_CANDIDATES = 16;
+
 export function buildRearrangePrompt(input: {
   teacherWindows: TeacherWindow[];
   fixed: OccupiedBlock[];
@@ -211,18 +214,24 @@ export function buildRearrangePrompt(input: {
       const current = student.current
         .map((block) => `${WEEKDAY_LABELS[block.weekday]} às ${block.start}`)
         .join("; ");
-      const availability = student.studentSlots
-        .map((slot) => `${WEEKDAY_LABELS[slot.weekday]} às ${slot.time}`)
+      const availability = student.ranges
+        .map(
+          (range) =>
+            `${WEEKDAY_LABELS[range.weekday]} das ${range.start} às ${range.end}`,
+        )
         .join("; ");
+      const shown = student.candidates.slice(0, MAX_PROMPT_CANDIDATES);
+      const hidden = student.candidates.length - shown.length;
       const candidates =
         student.candidates.length === 0
           ? "nenhum (todos colidem com a grade fixa ou ficam fora do horário do professor)"
-          : student.candidates.map((slot) => formatSlot(slot)).join("; ");
+          : shown.map((slot) => formatSlot(slot)).join("; ") +
+            (hidden > 0 ? `; e mais ${hidden} início(s) parecidos nas mesmas faixas` : "");
       return `### ${student.studentName}
 - Local: ${loc}
 - Aulas por semana: ${student.lessonsPerWeek}
 - Horário atual: ${current}
-- Horários que o aluno aceita: ${availability}
+- Faixas em que o aluno pode ter aula (a aula de 1 hora precisa caber inteira): ${availability}
 - Encaixes válidos contra a grade fixa: ${candidates}`;
     })
     .join("\n\n");
