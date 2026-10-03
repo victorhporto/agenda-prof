@@ -1,7 +1,9 @@
 import type { createClient } from "@/lib/supabase/server";
 import {
   buildOccupiedBlocks,
+  previousWeekBoundsSaoPaulo,
   rollingWeekBoundsSaoPaulo,
+  selectGridLessons,
   formatWeekLabel,
   type OccupiedBlock,
   type ScheduledLessonRow,
@@ -18,6 +20,7 @@ import { basePlace, type Place } from "@/lib/geo/travel";
 
 export type RearrangeContext = {
   weekLabel: string;
+  previousWeekLabel: string;
   fixed: OccupiedBlock[];
   moving: MovingStudent[];
   plan: RearrangePlan;
@@ -42,6 +45,7 @@ export async function loadRearrangeContext(
   return {
     data: {
       weekLabel: loaded.weekLabel,
+      previousWeekLabel: loaded.previousWeekLabel,
       fixed: context.fixed,
       moving: context.moving,
       plan: solveRearrangement(context.moving, context.fixed, loaded.base),
@@ -52,8 +56,7 @@ export async function loadRearrangeContext(
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
-/** Aulas já dadas ou faltadas continuam mostrando a grade da semana. */
-const GRID_LESSON_STATUSES = ["scheduled", "completed", "missed"];
+const GRID_QUERY_STATUSES = ["scheduled", "completed", "missed", "rescheduled"];
 
 export async function loadTeacherBase(
   supabase: ServerClient,
@@ -79,10 +82,12 @@ export async function loadWeekOccupiedBlocks(
   occupied: OccupiedBlock[];
   base: Place;
   weekLabel: string;
+  previousWeekLabel: string;
   startYmd: string;
   endYmd: string;
 }> {
   const bounds = rollingWeekBoundsSaoPaulo(now);
+  const previous = previousWeekBoundsSaoPaulo(now);
   const [{ data, error }, base] = await Promise.all([
     supabase
       .from("lessons")
@@ -91,6 +96,8 @@ export async function loadWeekOccupiedBlocks(
       id,
       scheduled_at,
       location,
+      status,
+      rescheduled_from_id,
       lesson_packages (
         title,
         students ( id, name, default_location, lat, lng )
@@ -98,8 +105,8 @@ export async function loadWeekOccupiedBlocks(
     `,
       )
       .eq("teacher_id", teacherId)
-      .in("status", GRID_LESSON_STATUSES)
-      .gte("scheduled_at", bounds.start.toISOString())
+      .in("status", GRID_QUERY_STATUSES)
+      .gte("scheduled_at", previous.start.toISOString())
       .lte("scheduled_at", bounds.end.toISOString())
       .order("scheduled_at", { ascending: true }),
     loadTeacherBase(supabase, teacherId),
@@ -110,9 +117,13 @@ export async function loadWeekOccupiedBlocks(
   }
 
   return {
-    occupied: buildOccupiedBlocks((data ?? []) as ScheduledLessonRow[], base),
+    occupied: buildOccupiedBlocks(
+      selectGridLessons((data ?? []) as ScheduledLessonRow[], bounds.start),
+      base,
+    ),
     base,
     weekLabel: formatWeekLabel(bounds),
+    previousWeekLabel: formatWeekLabel(previous),
     startYmd: bounds.startYmd,
     endYmd: bounds.endYmd,
   };

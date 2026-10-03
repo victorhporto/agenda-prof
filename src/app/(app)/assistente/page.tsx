@@ -24,7 +24,9 @@ function groupWeekStudents(occupied: OccupiedBlock[]): WeekStudent[] {
       name: block.studentName,
       location: block.location,
       lessons: [],
+      projected: false,
     };
+    if (block.projected) student.projected = true;
     student.lessons.push({ weekday: block.weekday, time: block.start });
     byId.set(block.studentId, student);
   }
@@ -107,6 +109,7 @@ export default async function AssistentePage({
           weekStudents={groupWeekStudents(week.occupied)}
           teacherWindows={teacherWindows}
           weekLabel={week.weekLabel}
+          previousWeekLabel={week.previousWeekLabel}
         />
       ) : (
         <p className="form-error">Não foi possível ler a agenda dos próximos 7 dias.</p>

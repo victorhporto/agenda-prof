@@ -35,6 +35,8 @@ export type WeekStudent = {
   name: string;
   location: LessonLocation | null;
   lessons: StudentSlot[];
+  /** Sem aulas a partir de hoje: horário veio da semana anterior. */
+  projected: boolean;
 };
 
 const FIRST_USER_MESSAGE =
@@ -53,13 +55,16 @@ export function RemanejarClient({
   weekStudents,
   teacherWindows,
   weekLabel,
+  previousWeekLabel,
 }: {
   weekStudents: WeekStudent[];
   teacherWindows: TeacherWindow[];
   weekLabel: string;
+  previousWeekLabel: string;
 }) {
   const [step, setStep] = useState<"form" | "chat">("form");
   const [availability, setAvailability] = useState<Record<string, AvailabilityRange[]>>({});
+  const [released, setReleased] = useState<string[]>([]);
   const [context, setContext] = useState<RearrangeContext | null>(null);
   const [inputSnapshot, setInputSnapshot] = useState<RearrangeInput | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -74,6 +79,7 @@ export function RemanejarClient({
     .filter((id) => id in availability);
 
   function toggleStudent(student: WeekStudent) {
+    setReleased((ids) => ids.filter((id) => id !== student.id));
     setAvailability((current) => {
       if (student.id in current) {
         const next = { ...current };
@@ -107,6 +113,7 @@ export function RemanejarClient({
         ranges: availability[studentId],
       })),
       teacherWindows,
+      releasedStudentIds: released.filter((id) => !(id in availability)),
     });
     if (!parsed.ok) {
       setError(parsed.error);
@@ -267,9 +274,10 @@ export function RemanejarClient({
   if (weekStudents.length === 0) {
     return (
       <div className="panel p-8 text-center">
-        <p className="font-medium">Nenhuma aula nos próximos 7 dias</p>
+        <p className="font-medium">Nenhuma aula recente ou próxima</p>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          O remanejamento usa a grade de {weekLabel} (hoje + 6 dias). Agende aulas para poder
+          O remanejamento usa as aulas de {weekLabel} e, para quem ainda não
+          renovou, as de {previousWeekLabel}. Agende aulas para poder
           trocar alunos de horário.
         </p>
       </div>
@@ -283,7 +291,8 @@ export function RemanejarClient({
           Quais alunos você quer trocar de horário?
         </p>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          Grade de {weekLabel} (hoje + 6 dias, contando aulas já dadas). Para cada aluno, informe as faixas em que
+          Grade de {weekLabel}; quem ainda não tem aulas a partir de hoje entra
+          com o horário de {previousWeekLabel}. Para cada aluno, informe as faixas em que
           ele pode ter aula (ex.: sexta das 10h às 15h + segunda das 13h às
           18h) — a aula atual já vem preenchida. Os demais alunos
           ficam onde estão.
@@ -315,8 +324,29 @@ export function RemanejarClient({
                     Hoje: {formatSlots(student.lessons)}
                     {student.location ? ` · ${LOCATION_SHORT[student.location]}` : ""}
                   </span>
+                  {student.projected ? (
+                    <span className="mt-1 inline-block rounded-full bg-[var(--warning-soft)] px-2 py-0.5 text-xs text-[var(--warning)]">
+                      Pela semana passada · pacote sem aulas futuras
+                    </span>
+                  ) : null}
                 </span>
               </label>
+              {student.projected && !selected ? (
+                <label className="mt-2 flex cursor-pointer items-center gap-2 pl-7 text-sm text-[var(--ink-muted)]">
+                  <input
+                    type="checkbox"
+                    checked={released.includes(student.id)}
+                    onChange={(event) =>
+                      setReleased((ids) =>
+                        event.target.checked
+                          ? [...ids, student.id]
+                          : ids.filter((id) => id !== student.id),
+                      )
+                    }
+                  />
+                  Não vai renovar — liberar este horário na análise
+                </label>
+              ) : null}
               {selected ? (
                 <div className="mt-3 pl-7">
                   <AvailabilityRangesEditor

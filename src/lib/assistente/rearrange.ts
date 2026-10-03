@@ -38,7 +38,11 @@ export type AvailabilityRange = { weekday: Weekday; start: string; end: string }
 export type RearrangeInput = {
   students: { studentId: string; ranges: AvailabilityRange[] }[];
   teacherWindows: TeacherWindow[];
+  /** Alunos que não voltam: o horário deles sai da grade fixa. */
+  releasedStudentIds?: string[];
 };
+
+const MAX_RELEASED_STUDENTS = 100;
 
 export function slotsFromRanges(ranges: AvailabilityRange[]): StudentSlot[] {
   const seen = new Set<string>();
@@ -166,7 +170,25 @@ export function parseRearrangeInput(
   const windows = parseTeacherWindows(data.teacherWindows);
   if (!windows.ok) return windows;
 
-  return { ok: true, value: { students, teacherWindows: windows.value } };
+  const released = Array.isArray(data.releasedStudentIds)
+    ? [
+        ...new Set(
+          data.releasedStudentIds
+            .filter((id): id is string => typeof id === "string")
+            .map((id) => id.trim())
+            .filter((id) => id && id.length <= 100 && !seen.has(id)),
+        ),
+      ].slice(0, MAX_RELEASED_STUDENTS)
+    : [];
+
+  return {
+    ok: true,
+    value: {
+      students,
+      teacherWindows: windows.value,
+      ...(released.length ? { releasedStudentIds: released } : {}),
+    },
+  };
 }
 
 function dominantLocation(blocks: OccupiedBlock[]): LessonLocation | null {
@@ -214,9 +236,12 @@ export function buildRearrangeContext(
   | { ok: true; fixed: OccupiedBlock[]; moving: MovingStudent[] }
   | { ok: false; error: string } {
   const selected = new Set(input.students.map((student) => student.studentId));
+  const released = new Set(input.releasedStudentIds ?? []);
   const fixed = withDayTravel(
     occupied.filter(
-      (block) => !block.studentId || !selected.has(block.studentId),
+      (block) =>
+        !block.studentId ||
+        (!selected.has(block.studentId) && !released.has(block.studentId)),
     ),
     base,
   );

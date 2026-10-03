@@ -83,6 +83,8 @@ export type OccupiedBlock = {
   travelBefore?: TravelEstimate;
   /** Volta para a base: depois da última aula ou antes de uma aula na base. */
   travelAfter?: TravelEstimate;
+  /** Horário repetido da semana anterior: o aluno ainda não tem aulas futuras. */
+  projected?: boolean;
 };
 
 export type CandidateSlot = {
@@ -109,6 +111,9 @@ export type ScheduledLessonRow = {
   id: string;
   scheduled_at: string;
   location?: string | null;
+  status?: string | null;
+  rescheduled_from_id?: string | null;
+  projected?: boolean;
   lesson_packages: {
     title: string;
     students: {
@@ -180,6 +185,65 @@ export function rollingWeekBoundsSaoPaulo(now = new Date()) {
     startYmd,
     endYmd,
   };
+}
+
+/** Os 7 dias antes de hoje, usados para projetar quem ainda não renovou. */
+export function previousWeekBoundsSaoPaulo(now = new Date()) {
+  const today = toZonedTime(now, APP_TIMEZONE);
+  const startYmd = format(addDays(today, -7), "yyyy-MM-dd");
+  const endYmd = format(addDays(today, -1), "yyyy-MM-dd");
+  return {
+    start: fromZonedTime(`${startYmd}T00:00:00`, APP_TIMEZONE),
+    end: fromZonedTime(`${endYmd}T23:59:59.999`, APP_TIMEZONE),
+    startYmd,
+    endYmd,
+  };
+}
+
+const UPCOMING_GRID_STATUSES = new Set(["scheduled", "completed", "missed"]);
+const PREVIOUS_GRID_STATUSES = new Set([
+  "scheduled",
+  "completed",
+  "missed",
+  "rescheduled",
+]);
+
+/**
+ * Grade por aluno: vale o que ele tem a partir de hoje; quem não tem nenhuma
+ * aula daqui para frente (pacote não renovado) entra com a semana anterior.
+ * Na semana anterior, conta o horário original de uma aula remarcada, não a
+ * aula avulsa criada pela remarcação.
+ */
+export function selectGridLessons(
+  rows: ScheduledLessonRow[],
+  todayStart: Date,
+): ScheduledLessonRow[] {
+  const upcoming: ScheduledLessonRow[] = [];
+  const previous: ScheduledLessonRow[] = [];
+  for (const row of rows) {
+    const time = new Date(row.scheduled_at).getTime();
+    if (Number.isNaN(time)) continue;
+    const status = row.status ?? "scheduled";
+    if (time >= todayStart.getTime()) {
+      if (UPCOMING_GRID_STATUSES.has(status)) upcoming.push(row);
+    } else if (PREVIOUS_GRID_STATUSES.has(status) && !row.rescheduled_from_id) {
+      previous.push(row);
+    }
+  }
+
+  const withUpcoming = new Set(
+    upcoming
+      .map((row) => row.lesson_packages?.students?.id)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const projected = previous
+    .filter((row) => {
+      const studentId = row.lesson_packages?.students?.id;
+      return studentId && !withUpcoming.has(studentId);
+    })
+    .map((row) => ({ ...row, projected: true }));
+
+  return [...upcoming, ...projected];
 }
 
 export function formatWeekLabel(bounds: {
@@ -388,6 +452,7 @@ export function buildOccupiedBlocks(
         lessonId: lesson.id,
         scheduledAt: lesson.scheduled_at,
         place,
+        ...(lesson.projected ? { projected: true } : {}),
       };
     })
     .filter((block): block is OccupiedBlock => block != null);
@@ -463,7 +528,8 @@ export function findCandidateSlots(input: {
 
 export function formatOccupiedLabel(block: OccupiedBlock): string {
   const location = block.location ? ` · ${LOCATION_SHORT[block.location]}` : "";
-  return `${WEEKDAY_SHORT[block.weekday]} ${block.start} ${block.studentName}${location}`;
+  const projected = block.projected ? " · pela semana passada" : "";
+  return `${WEEKDAY_SHORT[block.weekday]} ${block.start} ${block.studentName}${location}${projected}`;
 }
 
 function parseWeekday(value: unknown): Weekday | null {

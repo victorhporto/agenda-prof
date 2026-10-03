@@ -193,11 +193,11 @@ export function AssistenteClient({
         </div>
 
         <div className="panel space-y-2 p-4 text-sm">
-          <p className="font-semibold">Grade ocupada nos próximos 7 dias</p>
+          <p className="font-semibold">Grade ocupada (próximos 7 dias + quem ainda não renovou)</p>
           {preview.occupied.length === 0 ? (
             <p className="text-[var(--ink-muted)]">
-              Nenhuma aula neste recorte. Aulas fora destes 7 dias não entram
-              aqui.
+              Nenhuma aula neste recorte. Só entram as aulas dos próximos 7
+              dias e, para quem ainda não renovou, as da semana anterior.
             </p>
           ) : (
             <ul className="space-y-1 text-[var(--ink-muted)]">

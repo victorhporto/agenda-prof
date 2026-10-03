@@ -3,6 +3,10 @@ import {
   buildOccupiedBlocks,
   civilWeekBoundsSaoPaulo,
   rollingWeekBoundsSaoPaulo,
+  previousWeekBoundsSaoPaulo,
+  selectGridLessons,
+  formatOccupiedLabel,
+  type ScheduledLessonRow,
   defaultTeacherWindows,
   findCandidateSlots,
   formatStudentSlots,
@@ -64,6 +68,81 @@ describe("rollingWeekBoundsSaoPaulo", () => {
     // Sexta 02/10 23:30 em SP = sábado 02:30 UTC.
     const bounds = rollingWeekBoundsSaoPaulo(new Date("2026-10-03T02:30:00.000Z"));
     expect(bounds.startYmd).toBe("2026-10-02");
+  });
+});
+
+describe("previousWeekBoundsSaoPaulo", () => {
+  it("cobre os 7 dias antes de hoje", () => {
+    const bounds = previousWeekBoundsSaoPaulo(new Date("2026-10-03T04:30:00.000Z"));
+    expect(bounds.startYmd).toBe("2026-09-26");
+    expect(bounds.endYmd).toBe("2026-10-02");
+  });
+});
+
+describe("selectGridLessons", () => {
+  const today = new Date("2026-10-03T03:00:00.000Z");
+  function row(
+    id: string,
+    studentId: string,
+    scheduledAt: string,
+    extra: Partial<ScheduledLessonRow> = {},
+  ): ScheduledLessonRow {
+    return {
+      id,
+      scheduled_at: scheduledAt,
+      status: "scheduled",
+      lesson_packages: { title: "P", students: { id: studentId, name: studentId } },
+      ...extra,
+    };
+  }
+
+  it("usa a semana anterior só para quem não tem aula a partir de hoje", () => {
+    const rows = [
+      row("a-old", "a", "2026-09-28T14:00:00.000Z", { status: "completed" }),
+      row("a-new", "a", "2026-10-05T17:00:00.000Z"),
+      row("b-old", "b", "2026-09-29T14:00:00.000Z", { status: "completed" }),
+    ];
+    const grid = selectGridLessons(rows, today);
+    expect(grid.map((lesson) => `${lesson.id}:${Boolean(lesson.projected)}`)).toEqual([
+      "a-new:false",
+      "b-old:true",
+    ]);
+  });
+
+  it("na semana anterior conta o horário original da remarcação", () => {
+    const rows = [
+      row("orig", "c", "2026-09-28T14:00:00.000Z", { status: "rescheduled" }),
+      row("moved", "c", "2026-09-30T20:00:00.000Z", {
+        status: "completed",
+        rescheduled_from_id: "orig",
+      }),
+      row("cancel", "d", "2026-09-29T14:00:00.000Z", { status: "cancelled" }),
+    ];
+    expect(selectGridLessons(rows, today).map((lesson) => lesson.id)).toEqual([
+      "orig",
+    ]);
+  });
+
+  it("a partir de hoje ignora remarcadas e canceladas, mantém dadas", () => {
+    const rows = [
+      row("done", "e", "2026-10-03T13:00:00.000Z", { status: "completed" }),
+      row("gone", "f", "2026-10-04T13:00:00.000Z", { status: "rescheduled" }),
+      row("off", "g", "2026-10-04T15:00:00.000Z", { status: "cancelled" }),
+    ];
+    expect(selectGridLessons(rows, today).map((lesson) => lesson.id)).toEqual([
+      "done",
+    ]);
+  });
+
+  it("marca o bloco projetado na grade", () => {
+    const [block] = buildOccupiedBlocks(
+      selectGridLessons(
+        [row("b-old", "b", "2026-09-29T14:00:00.000Z", { status: "completed" })],
+        today,
+      ),
+    );
+    expect(block?.projected).toBe(true);
+    expect(formatOccupiedLabel(block!)).toContain("pela semana passada");
   });
 });
 

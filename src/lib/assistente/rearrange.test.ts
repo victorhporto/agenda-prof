@@ -159,6 +159,29 @@ describe("buildRearrangeContext", () => {
     expect(context.moving[0]?.candidates).toEqual([]);
   });
 
+  it("tira da grade fixa quem o professor liberou", () => {
+    const context = buildRearrangeContext(
+      [block("a", 1, "10:00"), block("b", 1, "12:00"), block("c", 2, "12:00")],
+      {
+        students: [{ studentId: "a", ranges: [rangeForLesson({ weekday: 1, time: "12:00" })] }],
+        teacherWindows,
+        releasedStudentIds: ["b"],
+      },
+    );
+    if (!context.ok) throw new Error(context.error);
+    expect(context.fixed.map((item) => item.studentId)).toEqual(["c"]);
+    expect(context.moving[0]?.candidates.map((slot) => slot.time)).toEqual(["12:00"]);
+  });
+
+  it("parse ignora liberados que também estão sendo remanejados", () => {
+    const parsed = parseRearrangeInput({
+      students: [{ studentId: "a", ranges: [{ weekday: 1, start: "10:00", end: "11:00" }] }],
+      teacherWindows,
+      releasedStudentIds: ["a", "b", "b", 3],
+    });
+    expect(parsed.ok && parsed.value.releasedStudentIds).toEqual(["b"]);
+  });
+
   it("recusa aluno sem aula na semana", () => {
     const context = buildRearrangeContext([block("a", 1, "10:00")], {
       students: [{ studentId: "x", ranges: [{ weekday: 1, start: "10:00", end: "11:00" }] }],

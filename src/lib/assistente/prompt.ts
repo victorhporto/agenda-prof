@@ -49,10 +49,13 @@ function formatOccupiedLines(occupied: OccupiedBlock[], empty: string) {
       const loc = block.location
         ? LOCATION_LABELS[block.location]
         : "local não cadastrado";
-      return `- ${WEEKDAY_LABELS[block.weekday]} ${block.start}–${block.end} (${loc}${travelNote(block)}): ${block.studentName} (${block.packageTitle})`;
+      const projected = block.projected ? " — projeção da semana anterior" : "";
+      return `- ${WEEKDAY_LABELS[block.weekday]} ${block.start}–${block.end} (${loc}${travelNote(block)}): ${block.studentName} (${block.packageTitle})${projected}`;
     })
     .join("\n");
 }
+
+const PROJECTION_RULE = `- Aulas marcadas como "projeção da semana anterior" são de alunos que ainda não têm aulas futuras (pacote não renovado): trate o horário como ocupado, mas pode mencionar que depende da renovação.`;
 
 const TRAVEL_RULE = `- O deslocamento é estimado pela distância entre os endereços (base do professor e casa de cada aluno), em blocos de 15 min. Aulas online e na casa do professor contam como na base. Sem endereço cadastrado, vale a estimativa padrão de 1h.
 - O deslocamento antes da primeira aula do dia pode começar antes da janela do professor; entre aulas, o intervalo precisa comportar o deslocamento.`;
@@ -166,7 +169,7 @@ CONTEXTO DESTA CONVERSA
 - Aluno: ${form.studentName}
 - Aulas desejadas por semana: ${form.lessonsPerWeek}
 - Local da aula: ${LOCATION_LABELS[form.location]}
-- Recorte da agenda (hoje + 6 dias, um de cada dia da semana): ${weekLabel}
+- Recorte da agenda: próximos 7 dias (${weekLabel}), um de cada dia da semana; alunos sem aulas futuras entram com o horário da semana anterior
 
 Horários disponíveis do aluno (início de aula de 1h):
 ${studentLines}
@@ -184,6 +187,7 @@ REGRAS
 - Cada aula dura 1 hora.
 - Prefira encaixar o aluno sem mover ninguém.
 ${TRAVEL_RULE}
+${PROJECTION_RULE}
 ${[newStudentTravel, baseNote].filter(Boolean).join("\n")}
 - Entre encaixes equivalentes, prefira o que acrescenta menos deslocamento ao dia.
 - Se não houver vaga, proponha o menor conjunto de remarcações, nomeando aluno e horário atuais da grade ocupada.
@@ -259,7 +263,7 @@ Responda sempre em português, de forma clara e objetiva.
 TAREFA
 O professor quer remanejar o horário fixo semanal de alguns alunos que já estão na agenda. Proponha a melhor nova grade para ESTES alunos, sem mexer nos demais.
 
-Recorte da agenda (hoje + 6 dias, um de cada dia da semana): ${weekLabel}
+Recorte da agenda: próximos 7 dias (${weekLabel}), um de cada dia da semana; alunos sem aulas futuras entram com o horário da semana anterior
 
 Disponibilidade do professor:
 ${formatTeacherLines(teacherWindows)}
@@ -278,6 +282,7 @@ Deslocamento semanal estimado: atual ${formatWeekTravel(plan.currentTravel)}; co
 REGRAS
 - Cada aula dura 1 hora. Cada aluno tem no máximo uma aula por dia.
 ${TRAVEL_RULE}
+${PROJECTION_RULE}
 - Use apenas os "encaixes válidos" de cada aluno. Dois alunos remanejados não podem se sobrepor nem deixar de comportar o deslocamento entre eles.
 - Quando fizer sentido, agrupe no mesmo dia e em horários seguidos alunos que moram perto um do outro, e comente a economia de deslocamento.
 - Parta do plano calculado. Só proponha outro se for igualmente válido e você explicar a vantagem (ex.: menos mudanças, dias mais concentrados, menos deslocamento).
