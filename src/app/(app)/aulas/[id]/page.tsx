@@ -5,6 +5,7 @@ import { LessonActions } from "@/components/LessonActions";
 import { EditLessonPanel } from "@/components/EditLessonPanel";
 import { RevertLessonButton } from "@/components/RevertLessonButton";
 import { CopyMessage } from "@/components/CopyMessage";
+import { RideButtons } from "@/components/RideButtons";
 import {
   completedLessonMessage,
   missedLessonMessage,
@@ -39,7 +40,7 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
         id,
         title,
         total_lessons,
-        students ( name, phone, default_location )
+        students ( id, name, phone, default_location, address, lat, lng )
       )
     `,
     )
@@ -51,7 +52,7 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "msg_completed, msg_missed, msg_rescheduled, msg_renewal, msg_signature, msg_signature_enabled",
+      "msg_completed, msg_missed, msg_rescheduled, msg_renewal, msg_signature, msg_signature_enabled, base_lat, base_lng",
     )
     .eq("id", user!.id)
     .single();
@@ -61,9 +62,13 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
     title: string;
     total_lessons: number;
     students: {
+      id: string;
       name: string;
       phone: string | null;
       default_location: string | null;
+      address: string | null;
+      lat: number | null;
+      lng: number | null;
     } | null;
   } | null;
 
@@ -76,6 +81,21 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
     lesson.location,
     pkg?.students?.default_location,
   );
+
+  const student = pkg?.students;
+  const rideDestination =
+    lessonLocation === "casa_aluno" && student?.lat != null && student?.lng != null
+      ? {
+          lat: student.lat,
+          lng: student.lng,
+          title: student.name,
+          address: student.address,
+        }
+      : null;
+  const teacherBase =
+    profile?.base_lat != null && profile?.base_lng != null
+      ? { lat: profile.base_lat, lng: profile.base_lng }
+      : null;
 
   let storedMessage: string | null = null;
   let renewalMessage: string | null = null;
@@ -196,6 +216,19 @@ export default async function AulaDetailPage({ params, searchParams }: Props) {
             <span className="text-[var(--ink-muted)]">Obs:</span> {lesson.notes}
           </p>
         )}
+        {rideDestination ? (
+          <div className="pt-2">
+            <RideButtons destination={rideDestination} base={teacherBase} />
+          </div>
+        ) : lessonLocation === "casa_aluno" && student ? (
+          <p className="text-[var(--ink-muted)]">
+            Para chamar Uber ou 99 daqui,{" "}
+            <Link href="/alunos" className="font-medium text-[var(--accent)]">
+              cadastre o endereço do aluno
+            </Link>
+            .
+          </p>
+        ) : null}
       </div>
 
       <EditLessonPanel
