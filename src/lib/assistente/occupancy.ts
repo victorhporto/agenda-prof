@@ -169,6 +169,19 @@ export function civilWeekBoundsSaoPaulo(now = new Date()) {
   };
 }
 
+/** Hoje + 6 dias: cada dia da semana aparece uma vez, a partir de hoje. */
+export function rollingWeekBoundsSaoPaulo(now = new Date()) {
+  const today = toZonedTime(now, APP_TIMEZONE);
+  const startYmd = format(today, "yyyy-MM-dd");
+  const endYmd = format(addDays(today, 6), "yyyy-MM-dd");
+  return {
+    start: fromZonedTime(`${startYmd}T00:00:00`, APP_TIMEZONE),
+    end: fromZonedTime(`${endYmd}T23:59:59.999`, APP_TIMEZONE),
+    startYmd,
+    endYmd,
+  };
+}
+
 export function formatWeekLabel(bounds: {
   start: Date;
   end: Date;

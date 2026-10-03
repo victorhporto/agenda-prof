@@ -1,7 +1,7 @@
 import type { createClient } from "@/lib/supabase/server";
 import {
   buildOccupiedBlocks,
-  civilWeekBoundsSaoPaulo,
+  rollingWeekBoundsSaoPaulo,
   formatWeekLabel,
   type OccupiedBlock,
   type ScheduledLessonRow,
@@ -33,7 +33,7 @@ export async function loadRearrangeContext(
   try {
     loaded = await loadWeekOccupiedBlocks(supabase, teacherId);
   } catch {
-    return { error: "Não foi possível ler a agenda desta semana" };
+    return { error: "Não foi possível ler a agenda dos próximos 7 dias" };
   }
 
   const context = buildRearrangeContext(loaded.occupied, input, loaded.base);
@@ -51,6 +51,9 @@ export async function loadRearrangeContext(
 }
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
+
+/** Aulas já dadas ou faltadas continuam mostrando a grade da semana. */
+const GRID_LESSON_STATUSES = ["scheduled", "completed", "missed"];
 
 export async function loadTeacherBase(
   supabase: ServerClient,
@@ -79,7 +82,7 @@ export async function loadWeekOccupiedBlocks(
   startYmd: string;
   endYmd: string;
 }> {
-  const bounds = civilWeekBoundsSaoPaulo(now);
+  const bounds = rollingWeekBoundsSaoPaulo(now);
   const [{ data, error }, base] = await Promise.all([
     supabase
       .from("lessons")
@@ -95,7 +98,7 @@ export async function loadWeekOccupiedBlocks(
     `,
       )
       .eq("teacher_id", teacherId)
-      .eq("status", "scheduled")
+      .in("status", GRID_LESSON_STATUSES)
       .gte("scheduled_at", bounds.start.toISOString())
       .lte("scheduled_at", bounds.end.toISOString())
       .order("scheduled_at", { ascending: true }),

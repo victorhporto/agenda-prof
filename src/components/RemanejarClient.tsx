@@ -267,9 +267,9 @@ export function RemanejarClient({
   if (weekStudents.length === 0) {
     return (
       <div className="panel p-8 text-center">
-        <p className="font-medium">Nenhuma aula agendada nesta semana</p>
+        <p className="font-medium">Nenhuma aula nos próximos 7 dias</p>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          O remanejamento usa a grade de {weekLabel}. Agende aulas para poder
+          O remanejamento usa a grade de {weekLabel} (hoje + 6 dias). Agende aulas para poder
           trocar alunos de horário.
         </p>
       </div>
@@ -283,7 +283,7 @@ export function RemanejarClient({
           Quais alunos você quer trocar de horário?
         </p>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          Grade de {weekLabel}. Para cada aluno, informe as faixas em que
+          Grade de {weekLabel} (hoje + 6 dias, contando aulas já dadas). Para cada aluno, informe as faixas em que
           ele pode ter aula (ex.: sexta das 10h às 15h + segunda das 13h às
           18h) — a aula atual já vem preenchida. Os demais alunos
           ficam onde estão.

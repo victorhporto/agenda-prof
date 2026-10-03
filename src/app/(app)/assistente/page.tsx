@@ -67,7 +67,7 @@ export default async function AssistentePage({
         </h1>
         <p className="mt-1 text-[var(--ink-muted)]">
           {mode === "novo"
-            ? "Informe a disponibilidade do aluno. Seu horário vem do perfil — o assistente lê a grade da semana e sugere um encaixe, sem alterar a agenda."
+            ? "Informe a disponibilidade do aluno. Seu horário vem do perfil — o assistente lê a grade dos próximos 7 dias e sugere um encaixe, sem alterar a agenda."
             : "Escolha os alunos que vão mudar de horário. O assistente remonta a grade deles sem mexer nos demais e sem alterar a agenda."}
         </p>
       </div>
@@ -109,7 +109,7 @@ export default async function AssistentePage({
           weekLabel={week.weekLabel}
         />
       ) : (
-        <p className="form-error">Não foi possível ler a agenda desta semana.</p>
+        <p className="form-error">Não foi possível ler a agenda dos próximos 7 dias.</p>
       )}
     </div>
   );

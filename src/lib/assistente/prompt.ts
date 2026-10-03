@@ -137,7 +137,7 @@ export function buildSystemPrompt(input: {
 
   const occupiedLines = formatOccupiedLines(
     occupied,
-    "- (nenhuma aula agendada nesta semana)",
+    "- (nenhuma aula nos próximos 7 dias)",
   );
 
   const studentLines = form.studentSlots
@@ -166,7 +166,7 @@ CONTEXTO DESTA CONVERSA
 - Aluno: ${form.studentName}
 - Aulas desejadas por semana: ${form.lessonsPerWeek}
 - Local da aula: ${LOCATION_LABELS[form.location]}
-- Semana usada como recorte da agenda: ${weekLabel}
+- Recorte da agenda (hoje + 6 dias, um de cada dia da semana): ${weekLabel}
 
 Horários disponíveis do aluno (início de aula de 1h):
 ${studentLines}
@@ -174,7 +174,7 @@ ${studentLines}
 Disponibilidade do professor:
 ${teacherLines}
 
-Grade já ocupada (aulas agendadas nesta semana, na ordem do dia, com o deslocamento estimado):
+Grade já ocupada (aulas dos próximos 7 dias, incluindo as já dadas hoje, na ordem do dia, com o deslocamento estimado):
 ${occupiedLines}
 
 Encaixes já calculados pelo sistema (não invente um horário livre que não esteja aqui, salvo se o professor pedir para considerar outra hipótese e você deixar explícito que é uma simulação):
@@ -259,13 +259,13 @@ Responda sempre em português, de forma clara e objetiva.
 TAREFA
 O professor quer remanejar o horário fixo semanal de alguns alunos que já estão na agenda. Proponha a melhor nova grade para ESTES alunos, sem mexer nos demais.
 
-Semana usada como recorte da agenda: ${weekLabel}
+Recorte da agenda (hoje + 6 dias, um de cada dia da semana): ${weekLabel}
 
 Disponibilidade do professor:
 ${formatTeacherLines(teacherWindows)}
 
 Grade fixa (alunos que NÃO serão movidos, com o deslocamento estimado):
-${formatOccupiedLines(fixed, "- (nenhuma outra aula nesta semana)")}
+${formatOccupiedLines(fixed, "- (nenhuma outra aula nestes 7 dias)")}
 
 ALUNOS A REMANEJAR
 ${studentSections}

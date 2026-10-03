@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildOccupiedBlocks,
   civilWeekBoundsSaoPaulo,
+  rollingWeekBoundsSaoPaulo,
   defaultTeacherWindows,
   findCandidateSlots,
   formatStudentSlots,
@@ -46,6 +47,23 @@ describe("parseTimeToMinutes", () => {
   it("rejeita horário inválido", () => {
     expect(parseTimeToMinutes("25:00")).toBeNull();
     expect(parseTimeToMinutes("abc")).toBeNull();
+  });
+});
+
+describe("rollingWeekBoundsSaoPaulo", () => {
+  it("vai de hoje (horário de SP) até 6 dias depois", () => {
+    // Sábado 03/10/2026 01:30 em SP = 04:30 UTC.
+    const bounds = rollingWeekBoundsSaoPaulo(new Date("2026-10-03T04:30:00.000Z"));
+    expect(bounds.startYmd).toBe("2026-10-03");
+    expect(bounds.endYmd).toBe("2026-10-09");
+    expect(bounds.start.toISOString()).toBe("2026-10-03T03:00:00.000Z");
+    expect(formatWeekLabel(bounds)).toBe("03/10 a 09/10/2026");
+  });
+
+  it("perto da meia-noite usa o dia de SP, não o UTC", () => {
+    // Sexta 02/10 23:30 em SP = sábado 02:30 UTC.
+    const bounds = rollingWeekBoundsSaoPaulo(new Date("2026-10-03T02:30:00.000Z"));
+    expect(bounds.startYmd).toBe("2026-10-02");
   });
 });
 
