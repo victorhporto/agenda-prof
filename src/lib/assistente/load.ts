@@ -15,7 +15,11 @@ import {
 } from "@/lib/assistente/rearrange";
 import type { Coordinates } from "@/lib/geo/geocode";
 import { basePlace, type Place } from "@/lib/geo/travel";
-import { buildIdealGrid, type GridStudent } from "@/lib/students/reserved";
+import {
+  buildIdealGrid,
+  studentsOutsideGrid,
+  type GridStudent,
+} from "@/lib/students/reserved";
 
 export type RearrangeContext = {
   weekLabel: string;
@@ -79,6 +83,7 @@ export async function loadWeekOccupiedBlocks(
   now = new Date(),
 ): Promise<{
   occupied: OccupiedBlock[];
+  outside: GridStudent[];
   base: Place;
   weekLabel: string;
   previousWeekLabel: string;
@@ -133,13 +138,15 @@ export async function loadWeekOccupiedBlocks(
     ),
   }));
 
+  const occupied = buildIdealGrid({
+    students: gridStudents,
+    lessons: (data ?? []) as ScheduledLessonRow[],
+    todayStart: bounds.start,
+    base,
+  });
   return {
-    occupied: buildIdealGrid({
-      students: gridStudents,
-      lessons: (data ?? []) as ScheduledLessonRow[],
-      todayStart: bounds.start,
-      base,
-    }),
+    occupied,
+    outside: studentsOutsideGrid(gridStudents, occupied),
     base,
     weekLabel: formatWeekLabel(bounds),
     previousWeekLabel: formatWeekLabel(previous),

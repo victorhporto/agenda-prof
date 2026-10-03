@@ -216,32 +216,52 @@ export type GridStudent = {
   hasActivePackage: boolean;
 };
 
-function reservedBlocks(student: GridStudent, base: Place): OccupiedBlock[] {
+/** Card da grade ideal para um horário reservado do aluno. */
+export function reservedBlock(
+  student: GridStudent,
+  slot: StudentSlot,
+  base: Place,
+): OccupiedBlock {
   const location = parseStoredLocation(student.default_location);
   const coords =
     student.lat != null && student.lng != null
       ? { lat: student.lat, lng: student.lng }
       : null;
   const place = placeForLocation(location, base, studentPlace(student.id, coords));
-  return reservedSlotsFromStored(student.reserved_slots).map((slot) => {
-    const start = parseTimeToMinutes(slot.time)!;
-    return {
-      weekday: slot.weekday,
-      start: slot.time,
-      end: minutesToTime(start + LESSON_DURATION_MINUTES),
-      occupiesStart: slot.time,
-      occupiesEnd: minutesToTime(start + LESSON_DURATION_MINUTES),
-      location,
-      studentId: student.id,
-      studentName: student.name,
-      packageTitle: RESERVED_PACKAGE_TITLE,
-      lessonId: `reserva:${student.id}:${slot.weekday}-${slot.time}`,
-      scheduledAt: "",
-      place,
-      source: "reserva",
-      ...(student.hasActivePackage ? {} : { noActivePackage: true }),
-    } satisfies OccupiedBlock;
-  });
+  const start = parseTimeToMinutes(slot.time)!;
+  return {
+    weekday: slot.weekday,
+    start: slot.time,
+    end: minutesToTime(start + LESSON_DURATION_MINUTES),
+    occupiesStart: slot.time,
+    occupiesEnd: minutesToTime(start + LESSON_DURATION_MINUTES),
+    location,
+    studentId: student.id,
+    studentName: student.name,
+    packageTitle: RESERVED_PACKAGE_TITLE,
+    lessonId: `reserva:${student.id}:${slot.weekday}-${slot.time}`,
+    scheduledAt: "",
+    place,
+    source: "reserva",
+    ...(student.hasActivePackage ? {} : { noActivePackage: true }),
+  };
+}
+
+function reservedBlocks(student: GridStudent, base: Place): OccupiedBlock[] {
+  return reservedSlotsFromStored(student.reserved_slots).map((slot) =>
+    reservedBlock(student, slot, base),
+  );
+}
+
+/** Alunos cadastrados que não aparecem na grade (sem reserva e sem aulas na janela). */
+export function studentsOutsideGrid(
+  students: GridStudent[],
+  blocks: OccupiedBlock[],
+): GridStudent[] {
+  const inGrid = new Set(blocks.map((block) => block.studentId));
+  return students
+    .filter((student) => !inGrid.has(student.id))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 }
 
 /**

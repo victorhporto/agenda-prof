@@ -67,11 +67,12 @@ async function loadIdealGrid(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!user) return { occupied: [], outside: [] };
   try {
-    return (await loadWeekOccupiedBlocks(supabase, user.id)).occupied;
+    const { occupied, outside } = await loadWeekOccupiedBlocks(supabase, user.id);
+    return { occupied, outside };
   } catch {
-    return [];
+    return { occupied: [], outside: [] };
   }
 }
 
@@ -393,7 +394,8 @@ export default async function AgendaPage({
 
       {view === "ideal" ? (
         <IdealWeekPanel
-          initialBlocks={ideal ?? []}
+          initialBlocks={ideal?.occupied ?? []}
+          outsideStudents={ideal?.outside ?? []}
           teacherWindows={teacherWindows}
           base={schedule.base}
           windowsSummary={summarizeTeacherWindows(teacherWindows)}

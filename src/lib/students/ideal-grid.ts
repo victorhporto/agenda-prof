@@ -4,6 +4,7 @@ import {
   parseTimeToMinutes,
   type OccupiedBlock,
   type StudentSlot,
+  type TeacherWindow,
   type Weekday,
 } from "@/lib/assistente/occupancy";
 
@@ -28,6 +29,27 @@ export function canPlace(
     const other = parseTimeToMinutes(block.start);
     return other == null || Math.abs(other - start) >= LESSON_DURATION_MINUTES;
   });
+}
+
+/** Primeiro horário (de 15 em 15 min) dentro do atendimento que não bate com outra aula. */
+export function firstFreeSlot(
+  blocks: OccupiedBlock[],
+  teacherWindows: TeacherWindow[],
+): StudentSlot | null {
+  const windows = [...teacherWindows].sort(
+    (a, b) => a.weekday - b.weekday || a.start.localeCompare(b.start),
+  );
+  for (const window of windows) {
+    const from = parseTimeToMinutes(window.start);
+    const to = window.end === "24:00" ? 24 * 60 : parseTimeToMinutes(window.end);
+    if (from == null || to == null) continue;
+    for (let start = from; start + LESSON_DURATION_MINUTES <= to; start += GRID_SNAP_MINUTES) {
+      if (canPlace(blocks, "", window.weekday, start)) {
+        return { weekday: window.weekday, time: minutesToTime(start) };
+      }
+    }
+  }
+  return null;
 }
 
 export function moveBlock(

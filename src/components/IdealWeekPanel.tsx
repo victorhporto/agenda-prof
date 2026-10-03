@@ -32,11 +32,13 @@ import {
 import type { Place } from "@/lib/geo/travel";
 import {
   canPlace,
+  firstFreeSlot,
   moveBlock,
   reservationChanges,
   snapMinutes,
 } from "@/lib/students/ideal-grid";
 import { saveReservedGrid } from "@/lib/students/actions";
+import { reservedBlock, type GridStudent } from "@/lib/students/reserved";
 import { DayCard } from "@/components/FreeHoursPanel";
 
 const PX_PER_MINUTE = 1;
@@ -53,7 +55,10 @@ type DragState = {
   originX: number;
   originY: number;
   moved: boolean;
+  overGrid: boolean;
   range: Range;
+  /** Aluno vindo da lista "fora da grade" (ainda sem card). */
+  student?: GridStudent;
 };
 
 function minutesOf(time: string) {
@@ -106,12 +111,14 @@ function BackgroundSegment({ segment, range }: { segment: TimelineSegment; range
 
 export function IdealWeekPanel({
   initialBlocks,
+  outsideStudents,
   teacherWindows,
   base,
   windowsSummary,
   windowsSaved,
 }: {
   initialBlocks: OccupiedBlock[];
+  outsideStudents: GridStudent[];
   teacherWindows: TeacherWindow[];
   base: Place;
   windowsSummary: string;
@@ -125,6 +132,7 @@ export function IdealWeekPanel({
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
   const columns = useRef(new Map<Weekday, HTMLDivElement>());
+  const addedCount = useRef(0);
 
   if (initialBlocks !== original) {
     setOriginal(initialBlocks);
@@ -169,6 +177,14 @@ export function IdealWeekPanel({
   const inactive = new Set(
     blocks.filter((block) => block.noActivePackage).map((block) => block.studentId),
   ).size;
+  const pool = outsideStudents.filter(
+    (student) => !blocks.some((block) => block.studentId === student.id),
+  );
+  const addedIds = new Set(
+    blocks
+      .filter((block) => !original.some((item) => item.lessonId === block.lessonId))
+      .map((block) => block.lessonId),
+  );
   const movedIds = new Set(
     blocks
       .filter((block) => {
@@ -209,6 +225,9 @@ export function IdealWeekPanel({
       Math.abs(event.clientY - current.originY) > DRAG_THRESHOLD_PX;
     if (!moved) return current;
     const column = columnAt(event.clientX);
+    if (current.student && !column) {
+      return { ...current, moved: true, overGrid: false, valid: false };
+    }
     const weekday = column?.weekday ?? current.weekday;
     const top =
       column?.top ?? columns.current.get(current.weekday)?.getBoundingClientRect().top ?? 0;
@@ -218,13 +237,39 @@ export function IdealWeekPanel({
     return {
       ...current,
       moved: true,
+      overGrid: column != null,
       weekday,
       start,
       valid: canPlace(blocksRef.current, current.lessonId, weekday, start),
     };
   }
 
+  function addStudent(student: GridStudent, weekday: Weekday, start: number) {
+    addedCount.current += 1;
+    const block = reservedBlock(student, { weekday, time: minutesToTime(start) }, base);
+    const added = { ...block, lessonId: `${block.lessonId}:novo-${addedCount.current}` };
+    setBlocks((items) => [...items, added]);
+  }
+
   function drop(current: DragState) {
+    if (current.student) {
+      if (!current.moved) {
+        const slot = firstFreeSlot(blocksRef.current, teacherWindows);
+        if (!slot) {
+          setNotice("Não achei horário livre no atendimento — arraste o aluno para a grade.");
+          return;
+        }
+        addStudent(current.student, slot.weekday, minutesOf(slot.time));
+        return;
+      }
+      if (!current.overGrid) return;
+      if (!current.valid) {
+        setNotice("Esse horário bate com outra aula do dia — escolha outro.");
+        return;
+      }
+      addStudent(current.student, current.weekday, current.start);
+      return;
+    }
     if (!current.moved) {
       const block = blocksRef.current.find((item) => item.lessonId === current.lessonId);
       const href = block ? blockHref(block) : null;
@@ -239,20 +284,40 @@ export function IdealWeekPanel({
   }
 
   function onPointerDown(event: ReactPointerEvent<HTMLDivElement>, block: OccupiedBlock) {
-    if (!range || event.button !== 0) return;
-    event.preventDefault();
-    detachRef.current?.();
     const rect = event.currentTarget.getBoundingClientRect();
-    setNotice(null);
-    updateDrag({
+    startDrag(event, {
       lessonId: block.lessonId,
       weekday: block.weekday,
       start: minutesOf(block.start),
-      valid: true,
       offsetMinutes: (event.clientY - rect.top) / PX_PER_MINUTE,
+    });
+  }
+
+  function onStudentPointerDown(event: ReactPointerEvent<HTMLElement>, student: GridStudent) {
+    startDrag(event, {
+      lessonId: `reserva:${student.id}:arrastando`,
+      weekday: 1,
+      start: 0,
+      offsetMinutes: LESSON_DURATION_MINUTES / 4,
+      student,
+    });
+  }
+
+  function startDrag(
+    event: ReactPointerEvent<HTMLElement>,
+    initial: Pick<DragState, "lessonId" | "weekday" | "start" | "offsetMinutes" | "student">,
+  ) {
+    if (!range || event.button !== 0) return;
+    event.preventDefault();
+    detachRef.current?.();
+    setNotice(null);
+    updateDrag({
+      ...initial,
+      valid: !initial.student,
       originX: event.clientX,
       originY: event.clientY,
       moved: false,
+      overGrid: !initial.student,
       range,
     });
 
@@ -420,6 +485,33 @@ export function IdealWeekPanel({
         </div>
       ) : (
         <>
+          {pool.length > 0 ? (
+            <div className="panel hidden space-y-2 p-4 md:block">
+              <p className="text-sm">
+                <span className="font-medium">Alunos fora da grade</span>{" "}
+                <span className="text-[var(--ink-muted)]">
+                  — sem horário reservado nem aulas na semana. Arraste para um
+                  horário ou clique para encaixar no primeiro horário livre.
+                </span>
+              </p>
+              <ul className="flex flex-wrap gap-2">
+                {pool.map((student) => (
+                  <li key={student.id}>
+                    <button
+                      type="button"
+                      title={`${student.name} — arraste para a grade ou clique para encaixar`}
+                      onPointerDown={(event) => onStudentPointerDown(event, student)}
+                      className={`slot-lesson cursor-grab touch-none rounded-full border border-dashed border-[var(--warning)] px-3 py-1 text-xs font-medium active:cursor-grabbing ${
+                        drag?.student?.id === student.id ? "opacity-50" : ""
+                      }`}
+                    >
+                      {student.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <div className="panel hidden overflow-x-auto p-4 md:block">
             <div
               className="grid gap-1 select-none"
@@ -453,7 +545,9 @@ export function IdealWeekPanel({
                     else columns.current.delete(day.weekday);
                   }}
                   className={`relative rounded-lg bg-[var(--bg)] ${
-                    drag?.moved && drag.weekday === day.weekday ? "ring-1 ring-[var(--accent)]" : ""
+                    drag?.moved && drag.overGrid && drag.weekday === day.weekday
+                      ? "ring-1 ring-[var(--accent)]"
+                      : ""
                   }`}
                   style={{ height }}
                 >
@@ -485,10 +579,33 @@ export function IdealWeekPanel({
                         block={block}
                         drag={drag}
                         moved={movedIds.has(block.lessonId)}
+                        added={addedIds.has(block.lessonId)}
                         range={range}
                         onPointerDown={onPointerDown}
+                        onRemove={() =>
+                          setBlocks((items) =>
+                            items.filter((item) => item.lessonId !== block.lessonId),
+                          )
+                        }
                       />
                     ))}
+                  {drag?.student && drag.moved && drag.overGrid && drag.weekday === day.weekday ? (
+                    <LessonCard
+                      block={{
+                        ...reservedBlock(
+                          drag.student,
+                          { weekday: drag.weekday, time: minutesToTime(drag.start) },
+                          base,
+                        ),
+                        lessonId: drag.lessonId,
+                      }}
+                      drag={drag}
+                      moved={false}
+                      added
+                      range={range}
+                      onPointerDown={() => {}}
+                    />
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -508,14 +625,18 @@ function LessonCard({
   block,
   drag,
   moved,
+  added,
   range,
   onPointerDown,
+  onRemove,
 }: {
   block: OccupiedBlock;
   drag: DragState | null;
   moved: boolean;
+  added: boolean;
   range: Range;
   onPointerDown: (event: ReactPointerEvent<HTMLDivElement>, block: OccupiedBlock) => void;
+  onRemove?: () => void;
 }) {
   const dragging = drag?.lessonId === block.lessonId && drag.moved;
   const weekday = dragging ? drag.weekday : block.weekday;
@@ -530,7 +651,7 @@ function LessonCard({
       onPointerDown={(event) => onPointerDown(event, block)}
       className={`slot-lesson absolute inset-x-1 z-10 cursor-grab touch-none overflow-hidden rounded-md px-1.5 py-0.5 text-[11px] leading-tight active:cursor-grabbing ${
         warn ? "border border-dashed border-[var(--warning)]" : ""
-      } ${moved && !dragging ? "ring-2 ring-[var(--accent)]" : ""} ${
+      } ${(moved || added) && !dragging ? "ring-2 ring-[var(--accent)]" : ""} ${
         dragging ? (drag.valid ? "z-20 opacity-90 shadow-lg" : "z-20 opacity-90 ring-2 ring-red-500") : ""
       }`}
       style={{
@@ -538,10 +659,22 @@ function LessonCard({
         height: LESSON_DURATION_MINUTES * PX_PER_MINUTE,
       }}
     >
-      <span className="block truncate font-semibold">{block.studentName}</span>
+      {added && onRemove && !dragging ? (
+        <button
+          type="button"
+          aria-label={`Tirar ${block.studentName} da grade`}
+          title="Tirar da grade"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={onRemove}
+          className="absolute top-0.5 right-1 rounded px-1 leading-none opacity-70 hover:opacity-100"
+        >
+          ×
+        </button>
+      ) : null}
+      <span className="block truncate pr-3 font-semibold">{block.studentName}</span>
       <span className="block truncate opacity-80">
         {minutesToTime(start)}
-        {moved && !dragging ? " · movido" : ""}
+        {added && !dragging ? " · novo" : moved && !dragging ? " · movido" : ""}
       </span>
     </div>
   );

@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { OccupiedBlock, Weekday } from "@/lib/assistente/occupancy";
 import {
   canPlace,
+  firstFreeSlot,
   moveBlock,
   reservationChanges,
   snapMinutes,
 } from "@/lib/students/ideal-grid";
+import { reservedBlock, studentsOutsideGrid, type GridStudent } from "@/lib/students/reserved";
+import { basePlace } from "@/lib/geo/travel";
 
 function block(studentId: string, weekday: Weekday, start: string, n = 0): OccupiedBlock {
   return {
@@ -73,5 +76,56 @@ describe("moveBlock e reservationChanges", () => {
     const moved = moveBlock(original, "a-0", 2, 600);
     const back = moveBlock(moved, "a-0", 1, 600);
     expect(reservationChanges(original, back)).toEqual([]);
+  });
+});
+
+describe("firstFreeSlot", () => {
+  const windows = [
+    { weekday: 2 as Weekday, start: "10:00", end: "12:00" },
+    { weekday: 1 as Weekday, start: "10:00", end: "11:30" },
+  ];
+  it("pega o primeiro horário livre seguindo os dias da semana", () => {
+    expect(firstFreeSlot([], windows)).toEqual({ weekday: 1, time: "10:00" });
+    expect(firstFreeSlot([block("a", 1, "10:00")], windows)).toEqual({
+      weekday: 2,
+      time: "10:00",
+    });
+    expect(firstFreeSlot([block("a", 1, "10:30")], windows)).toEqual({
+      weekday: 2,
+      time: "10:00",
+    });
+  });
+  it("devolve null sem espaço no atendimento", () => {
+    expect(firstFreeSlot([block("a", 1, "10:00")], [windows[1]!])).toBeNull();
+  });
+});
+
+describe("alunos fora da grade", () => {
+  const student = (id: string, name: string): GridStudent => ({
+    id,
+    name,
+    default_location: "online",
+    lat: null,
+    lng: null,
+    reserved_slots: [],
+    hasActivePackage: false,
+  });
+  it("lista só quem não tem card na grade, em ordem alfabética", () => {
+    const students = [student("c", "Zeca"), student("a", "Ana"), student("b", "Bia")];
+    expect(studentsOutsideGrid(students, [block("a", 1, "10:00")]).map((s) => s.id)).toEqual([
+      "b",
+      "c",
+    ]);
+  });
+  it("gera o card de reserva do aluno no horário escolhido", () => {
+    const card = reservedBlock(student("b", "Bia"), { weekday: 3, time: "15:00" }, basePlace());
+    expect(card).toMatchObject({
+      weekday: 3,
+      start: "15:00",
+      end: "16:00",
+      studentId: "b",
+      source: "reserva",
+      noActivePackage: true,
+    });
   });
 });
