@@ -26,7 +26,20 @@ export type TimelineSegment = {
   travel?: TravelEstimate;
   /** Deslocamento de volta para a base (antes de aula online/na base ou no fim do dia). */
   travelToBase?: boolean;
+  studentId?: string;
+  source?: OccupiedBlock["source"];
+  projected?: boolean;
+  noActivePackage?: boolean;
 };
+
+function blockMeta(block: OccupiedBlock) {
+  return {
+    ...(block.studentId ? { studentId: block.studentId } : {}),
+    ...(block.source ? { source: block.source } : {}),
+    ...(block.projected ? { projected: true } : {}),
+    ...(block.noActivePackage ? { noActivePackage: true } : {}),
+  };
+}
 
 export type DayFreeHours = {
   weekday: Weekday;
@@ -169,6 +182,7 @@ function classifyInterval(
       packageTitle: lessonSpan.block.packageTitle,
       lessonId: lessonSpan.block.lessonId,
       location: lessonSpan.block.location,
+      ...blockMeta(lessonSpan.block),
     };
   }
 
@@ -193,6 +207,7 @@ function classifyInterval(
       lessonId: travelSpan.block.lessonId,
       location: travelSpan.block.location,
       travelSide,
+      ...blockMeta(travelSpan.block),
     };
   }
 
@@ -391,4 +406,24 @@ export function segmentOutsideWorkWindows(
     if (windowStart == null || windowEnd == null) return false;
     return start >= windowStart && end <= windowEnd;
   });
+}
+
+/** Onde abrir um bloco de aula: a aula real ou o aluno, se for reserva. */
+export function segmentHref(segment: TimelineSegment): string | null {
+  if (segment.kind !== "lesson") return null;
+  if (segment.source === "reserva") {
+    return segment.studentId ? `/alunos/${segment.studentId}` : null;
+  }
+  return segment.lessonId ? `/aulas/${segment.lessonId}` : null;
+}
+
+/** Etiqueta da origem do horário na grade ideal. */
+export function segmentOriginLabel(segment: TimelineSegment): string | null {
+  if (segment.kind !== "lesson") return null;
+  if (segment.source === "reserva") {
+    return segment.noActivePackage ? "Reserva sem pacote ativo" : null;
+  }
+  return segment.projected
+    ? "Sem reserva · semana passada"
+    : "Sem reserva · pelas aulas";
 }

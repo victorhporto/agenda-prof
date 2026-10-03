@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRepeatedLessonRows,
+  buildReservedLessonRows,
   pickLessonsToRepeat,
   shiftLessonDatesToNextPeriod,
 } from "@/lib/packages/repeat-lessons";
@@ -162,5 +163,50 @@ describe("buildRepeatedLessonRows", () => {
         notes: null,
       },
     ]);
+  });
+});
+
+describe("buildReservedLessonRows", () => {
+  it("agenda pela reserva depois da última aula do pacote anterior", () => {
+    const rows = buildReservedLessonRows({
+      teacherId: "t",
+      packageId: "p",
+      slots: [
+        { weekday: 2, time: "15:00" },
+        { weekday: 4, time: "15:00" },
+      ],
+      lessons: [
+        { status: "completed", scheduled_at: "2026-10-05T14:00:00.000Z", location: "online" },
+        { status: "scheduled", scheduled_at: "2026-10-12T14:00:00.000Z", location: "online" },
+        { status: "cancelled", scheduled_at: "2026-10-26T14:00:00.000Z", location: "online" },
+      ],
+      totalLessons: 3,
+      location: "casa_aluno",
+      now: new Date("2026-10-03T15:00:00.000Z"),
+    });
+    expect(rows.map((row) => row.scheduled_at)).toEqual([
+      "2026-10-13T18:00:00.000Z",
+      "2026-10-15T18:00:00.000Z",
+      "2026-10-20T18:00:00.000Z",
+    ]);
+    expect(rows.every((row) => row.location === "casa_aluno")).toBe(true);
+    expect(rows[0]).toMatchObject({ teacher_id: "t", package_id: "p", status: "scheduled" });
+  });
+
+  it("sem local padrão, usa o da última aula", () => {
+    const rows = buildReservedLessonRows({
+      teacherId: "t",
+      packageId: "p",
+      slots: [{ weekday: 1, time: "10:00" }],
+      lessons: [
+        { status: "completed", scheduled_at: "2026-09-28T13:00:00.000Z", location: "casa_professor" },
+      ],
+      totalLessons: 1,
+      location: null,
+      now: new Date("2026-10-03T15:00:00.000Z"),
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.location).toBe("casa_professor");
+    expect(rows[0]?.scheduled_at).toBe("2026-10-05T13:00:00.000Z");
   });
 });

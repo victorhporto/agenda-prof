@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { StudentForm } from "@/components/StudentForm";
 import { StudentCard } from "@/components/StudentCard";
+import { reservedSlotsFromStored } from "@/lib/students/reserved";
 
 export default async function AlunosPage() {
   const supabase = await createClient();
@@ -9,6 +10,12 @@ export default async function AlunosPage() {
     .from("students")
     .select("*")
     .order("name", { ascending: true });
+
+  const reservations = (students ?? []).map((student) => ({
+    studentId: student.id,
+    name: student.name,
+    slots: reservedSlotsFromStored(student.reserved_slots),
+  }));
 
   return (
     <div className="space-y-6">
@@ -25,7 +32,7 @@ export default async function AlunosPage() {
           <Link href="/fila" className="btn-secondary">
             Fila de espera
           </Link>
-          <StudentForm />
+          <StudentForm reservations={reservations} />
         </div>
       </div>
 
@@ -39,7 +46,11 @@ export default async function AlunosPage() {
       ) : (
         <ul className="space-y-3">
           {students.map((student) => (
-            <StudentCard key={student.id} student={student} />
+            <StudentCard
+              key={student.id}
+              student={student}
+              reservations={reservations}
+            />
           ))}
         </ul>
       )}

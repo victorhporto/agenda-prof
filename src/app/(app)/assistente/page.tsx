@@ -24,9 +24,12 @@ function groupWeekStudents(occupied: OccupiedBlock[]): WeekStudent[] {
       name: block.studentName,
       location: block.location,
       lessons: [],
+      reserved: block.source === "reserva",
       projected: false,
+      noActivePackage: false,
     };
     if (block.projected) student.projected = true;
+    if (block.noActivePackage) student.noActivePackage = true;
     student.lessons.push({ weekday: block.weekday, time: block.start });
     byId.set(block.studentId, student);
   }
@@ -69,7 +72,7 @@ export default async function AssistentePage({
         </h1>
         <p className="mt-1 text-[var(--ink-muted)]">
           {mode === "novo"
-            ? "Informe a disponibilidade do aluno. Seu horário vem do perfil — o assistente lê a grade dos próximos 7 dias e sugere um encaixe, sem alterar a agenda."
+            ? "Informe a disponibilidade do aluno. Seu horário vem do perfil — o assistente lê a grade ideal (horários reservados dos alunos) e sugere um encaixe, sem alterar a agenda."
             : "Escolha os alunos que vão mudar de horário. O assistente remonta a grade deles sem mexer nos demais e sem alterar a agenda."}
         </p>
       </div>

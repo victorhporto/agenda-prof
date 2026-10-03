@@ -256,6 +256,7 @@ export type Database = {
           notes: string | null;
           phone: string | null;
           default_location: string | null;
+          reserved_slots: Json;
           teacher_id: string;
         };
         Insert: {
@@ -269,6 +270,7 @@ export type Database = {
           notes?: string | null;
           phone?: string | null;
           default_location?: string | null;
+          reserved_slots?: Json;
           teacher_id: string;
         };
         Update: {
@@ -282,6 +284,7 @@ export type Database = {
           notes?: string | null;
           phone?: string | null;
           default_location?: string | null;
+          reserved_slots?: Json;
           teacher_id?: string;
         };
         Relationships: [

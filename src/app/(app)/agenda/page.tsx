@@ -12,6 +12,8 @@ import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { createClient } from "@/lib/supabase/server";
 import { AgendaLessonRow } from "@/components/AgendaLessonRow";
 import { FreeHoursPanel } from "@/components/FreeHoursPanel";
+import { IdealWeekPanel } from "@/components/IdealWeekPanel";
+import { loadWeekOccupiedBlocks } from "@/lib/assistente/load";
 import { effectiveLocation } from "@/lib/lessons/location";
 import {
   buildOccupiedBlocks,
@@ -34,7 +36,7 @@ type SearchParams = Promise<{
   filtro?: string;
   q?: string;
 }>;
-type AgendaView = "dia" | "semana" | "mes" | "livres";
+type AgendaView = "dia" | "semana" | "mes" | "livres" | "ideal";
 type AgendaFilter = "todas" | "pendentes" | "atrasadas";
 
 async function loadTeacherSchedule(
@@ -59,6 +61,20 @@ async function loadTeacherSchedule(
   };
 }
 
+async function loadIdealGrid(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+  try {
+    return (await loadWeekOccupiedBlocks(supabase, user.id)).occupied;
+  } catch {
+    return [];
+  }
+}
+
 type LessonRow = {
   id: string;
   scheduled_at: string;
@@ -81,7 +97,9 @@ type LessonRow = {
 const WEEKDAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
 function resolveView(raw: string | undefined): AgendaView {
-  if (raw === "semana" || raw === "mes" || raw === "livres") return raw;
+  if (raw === "semana" || raw === "mes" || raw === "livres" || raw === "ideal") {
+    return raw;
+  }
   return "dia";
 }
 
@@ -172,7 +190,7 @@ export default async function AgendaPage({
       ymdBounds(format(monthStart, "yyyy-MM-dd")).start,
       "MMMM yyyy",
     );
-  } else if (view === "semana" || view === "livres") {
+  } else if (view === "semana" || view === "livres" || view === "ideal") {
     const weekStart = startOfWeek(zonedBase, { weekStartsOn: 1 });
     const weekStartYmd = format(weekStart, "yyyy-MM-dd");
     const weekEndYmd = format(addDays(weekStart, 6), "yyyy-MM-dd");
@@ -181,9 +199,11 @@ export default async function AgendaPage({
     prev = format(addDays(weekStart, -7), "yyyy-MM-dd");
     next = format(addDays(weekStart, 7), "yyyy-MM-dd");
     title =
-      view === "livres"
-        ? `Horários livres · ${format(weekStart, "dd/MM")}–${format(addDays(weekStart, 6), "dd/MM")}`
-        : `Semana de ${format(weekStart, "dd/MM")}`;
+      view === "ideal"
+        ? "Grade ideal · semana-modelo pelos horários reservados"
+        : view === "livres"
+          ? `Horários livres · ${format(weekStart, "dd/MM")}–${format(addDays(weekStart, 6), "dd/MM")}`
+          : `Semana de ${format(weekStart, "dd/MM")}`;
   } else {
     const bounds = ymdBounds(dayKey);
     rangeStart = bounds.start;
@@ -214,11 +234,12 @@ export default async function AgendaPage({
     .lte("scheduled_at", rangeEnd.toISOString())
     .order("scheduled_at", { ascending: true });
 
-  const [{ data: lessons }, schedule] = await Promise.all([
-    lessonsPromise,
-    view === "livres"
+  const [{ data: lessons }, schedule, ideal] = await Promise.all([
+    view === "ideal" ? Promise.resolve({ data: [] }) : lessonsPromise,
+    view === "livres" || view === "ideal"
       ? loadTeacherSchedule(supabase)
       : Promise.resolve({ windows: null, base: basePlace() }),
+    view === "ideal" ? loadIdealGrid(supabase) : Promise.resolve(null),
   ]);
 
   const allLessons = (lessons ?? []) as unknown as LessonRow[];
@@ -248,6 +269,9 @@ export default async function AgendaPage({
           ),
         })
       : [];
+  const idealDays = ideal
+    ? buildWeekFreeHours({ teacherWindows, occupied: ideal })
+    : [];
   const lessonRows = applyLessonFilters(allLessons, filtro, q, now);
   const todayKey = todayYmdSaoPaulo();
 
@@ -277,6 +301,8 @@ export default async function AgendaPage({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {view !== "ideal" ? (
+        <>
         <Link
           href={agendaHref({ dia: prev, view, filtro, q })}
           className="btn-secondary px-3 py-2 text-sm"
@@ -295,6 +321,8 @@ export default async function AgendaPage({
         >
           →
         </Link>
+        </>
+        ) : null}
         <div className="ml-auto flex flex-wrap rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1">
           {(
             [
@@ -302,6 +330,7 @@ export default async function AgendaPage({
               ["semana", "Semana"],
               ["mes", "Mês"],
               ["livres", "Livres"],
+              ["ideal", "Grade ideal"],
             ] as const
           ).map(([value, label]) => (
             <Link
@@ -319,7 +348,7 @@ export default async function AgendaPage({
         </div>
       </div>
 
-      {view !== "livres" ? (
+      {view !== "livres" && view !== "ideal" ? (
       <div className="space-y-3">
         <div className="flex flex-wrap gap-2">
           {filterTabs.map((item) => (
@@ -365,7 +394,13 @@ export default async function AgendaPage({
       </div>
       ) : null}
 
-      {view === "livres" ? (
+      {view === "ideal" ? (
+        <IdealWeekPanel
+          days={idealDays}
+          windowsSummary={summarizeTeacherWindows(teacherWindows)}
+          windowsSaved={windowsSaved}
+        />
+      ) : view === "livres" ? (
         <FreeHoursPanel
           days={freeDays}
           windowsSummary={summarizeTeacherWindows(teacherWindows)}

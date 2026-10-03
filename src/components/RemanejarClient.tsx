@@ -35,9 +35,23 @@ export type WeekStudent = {
   name: string;
   location: LessonLocation | null;
   lessons: StudentSlot[];
-  /** Sem aulas a partir de hoje: horário veio da semana anterior. */
+  /** Horário vindo do cadastro (reserva) em vez das aulas. */
+  reserved: boolean;
+  /** Sem reserva e sem aulas a partir de hoje: horário veio da semana anterior. */
   projected: boolean;
+  noActivePackage: boolean;
 };
+
+function studentTag(student: WeekStudent): { label: string; warn: boolean } {
+  if (student.reserved) {
+    return student.noActivePackage
+      ? { label: "Horário reservado · sem pacote ativo", warn: true }
+      : { label: "Horário reservado", warn: false };
+  }
+  return student.projected
+    ? { label: "Sem reserva · pela semana passada", warn: true }
+    : { label: "Sem reserva · pelas aulas", warn: true };
+}
 
 const FIRST_USER_MESSAGE =
   "Monte a melhor nova grade para os alunos selecionados. Não altere a agenda — só sugira.";
@@ -274,10 +288,10 @@ export function RemanejarClient({
   if (weekStudents.length === 0) {
     return (
       <div className="panel p-8 text-center">
-        <p className="font-medium">Nenhuma aula recente ou próxima</p>
+        <p className="font-medium">Nenhum horário na grade</p>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          O remanejamento usa as aulas de {weekLabel} e, para quem ainda não
-          renovou, as de {previousWeekLabel}. Agende aulas para poder
+          Nenhum aluno tem horário reservado nem aulas em {weekLabel} ou{" "}
+          {previousWeekLabel}. Reserve horários no cadastro dos alunos ou agende aulas para poder
           trocar alunos de horário.
         </p>
       </div>
@@ -291,10 +305,11 @@ export function RemanejarClient({
           Quais alunos você quer trocar de horário?
         </p>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          Grade de {weekLabel}; quem ainda não tem aulas a partir de hoje entra
-          com o horário de {previousWeekLabel}. Para cada aluno, informe as faixas em que
+          A grade usa o horário reservado de cada aluno (cadastro). Quem não tem
+          reserva entra pelas aulas de {weekLabel} ou, sem aulas futuras, de{" "}
+          {previousWeekLabel}. Para cada aluno, informe as faixas em que
           ele pode ter aula (ex.: sexta das 10h às 15h + segunda das 13h às
-          18h) — a aula atual já vem preenchida. Os demais alunos
+          18h) — o horário atual já vem preenchido. Os demais alunos
           ficam onde estão.
         </p>
       </div>
@@ -321,17 +336,26 @@ export function RemanejarClient({
                 <span>
                   <span className="block font-medium">{student.name}</span>
                   <span className="block text-sm text-[var(--ink-muted)]">
-                    Hoje: {formatSlots(student.lessons)}
+                    {student.reserved ? "Reserva" : "Aulas"}: {formatSlots(student.lessons)}
                     {student.location ? ` · ${LOCATION_SHORT[student.location]}` : ""}
                   </span>
-                  {student.projected ? (
-                    <span className="mt-1 inline-block rounded-full bg-[var(--warning-soft)] px-2 py-0.5 text-xs text-[var(--warning)]">
-                      Pela semana passada · pacote sem aulas futuras
-                    </span>
-                  ) : null}
+                  {(() => {
+                    const tag = studentTag(student);
+                    return (
+                      <span
+                        className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs ${
+                          tag.warn
+                            ? "bg-[var(--warning-soft)] text-[var(--warning)]"
+                            : "bg-[var(--accent-soft)] text-[var(--accent)]"
+                        }`}
+                      >
+                        {tag.label}
+                      </span>
+                    );
+                  })()}
                 </span>
               </label>
-              {student.projected && !selected ? (
+              {(student.projected || student.noActivePackage) && !selected ? (
                 <label className="mt-2 flex cursor-pointer items-center gap-2 pl-7 text-sm text-[var(--ink-muted)]">
                   <input
                     type="checkbox"

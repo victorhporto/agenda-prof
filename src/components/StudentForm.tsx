@@ -6,8 +6,14 @@ import { createStudent } from "@/lib/students/actions";
 import { LocationRadios } from "@/components/LocationRadios";
 import { AddressFields, BaseLocationNote } from "@/components/AddressField";
 import type { LessonLocation } from "@/lib/lessons/location";
+import { ReservedSlotsEditor } from "@/components/ReservedSlotsEditor";
+import type { ReservationOwner } from "@/lib/students/reserved";
 
-export function StudentForm() {
+export function StudentForm({
+  reservations = [],
+}: {
+  reservations?: ReservationOwner[];
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +62,7 @@ export function StudentForm() {
       ) : (
         <BaseLocationNote location={location} />
       )}
+      <ReservedSlotsEditor others={reservations} />
       <label className="block text-sm font-medium text-[var(--ink-muted)]">
         Observações
         <textarea name="notes" rows={2} className="input mt-1" />

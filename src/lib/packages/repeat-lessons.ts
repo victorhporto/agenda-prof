@@ -1,3 +1,6 @@
+import type { StudentSlot } from "@/lib/assistente/occupancy";
+import { reservedLessonDates } from "@/lib/students/reserved";
+
 const REPEATABLE_STATUSES = new Set(["completed", "scheduled", "missed"]);
 
 export type RepeatableLesson = {
@@ -70,4 +73,43 @@ export function buildRepeatedLessonRows(args: {
     location: picked[index]?.location ?? null,
     notes: null,
   }));
+}
+
+/**
+ * Novo pacote pelo horário reservado: as aulas começam no primeiro horário
+ * reservado depois do fim do pacote anterior (e de agora).
+ */
+export function buildReservedLessonRows(args: {
+  teacherId: string;
+  packageId: string;
+  slots: StudentSlot[];
+  lessons: RepeatableLesson[];
+  totalLessons: number;
+  location: string | null;
+  now?: Date;
+}) {
+  const now = args.now ?? new Date();
+  const lastTimes = args.lessons
+    .filter((lesson) => REPEATABLE_STATUSES.has(lesson.status))
+    .map((lesson) => new Date(lesson.scheduled_at).getTime())
+    .filter((time) => Number.isFinite(time));
+  const after = new Date(Math.max(now.getTime(), ...lastTimes));
+  const fallbackLocation =
+    [...args.lessons]
+      .filter((lesson) => REPEATABLE_STATUSES.has(lesson.status))
+      .sort(
+        (a, b) =>
+          new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime(),
+      )[0]?.location ?? null;
+
+  return reservedLessonDates(args.slots, args.totalLessons, after).map(
+    (scheduledAt) => ({
+      teacher_id: args.teacherId,
+      package_id: args.packageId,
+      scheduled_at: scheduledAt,
+      status: "scheduled" as const,
+      location: args.location ?? fallbackLocation,
+      notes: null,
+    }),
+  );
 }

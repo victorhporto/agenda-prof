@@ -7,7 +7,11 @@ import { syncPackagePaymentTotals } from "@/lib/payments/actions";
 import { saoPauloInputToIso, todayYmdSaoPaulo } from "@/lib/timezone";
 import { findScheduleConflicts } from "@/lib/lessons/conflicts";
 import { parseRequiredLocation } from "@/lib/lessons/location";
-import { buildRepeatedLessonRows } from "@/lib/packages/repeat-lessons";
+import {
+  buildRepeatedLessonRows,
+  buildReservedLessonRows,
+} from "@/lib/packages/repeat-lessons";
+import { reservedSlotsFromStored } from "@/lib/students/reserved";
 
 export async function createPackage(formData: FormData) {
   const supabase = await createClient();
@@ -343,7 +347,8 @@ export async function duplicatePackage(sourcePackageId: string) {
       title,
       total_lessons,
       price,
-      lessons ( scheduled_at, status, location )
+      lessons ( scheduled_at, status, location ),
+      students ( reserved_slots, default_location )
     `,
     )
     .eq("id", sourcePackageId)
@@ -352,12 +357,22 @@ export async function duplicatePackage(sourcePackageId: string) {
 
   if (sourceError || !source) return { error: "Pacote não encontrado" };
 
-  const repeatedRows = buildRepeatedLessonRows({
-    teacherId: user.id,
-    packageId: "pending",
-    lessons: source.lessons ?? [],
-    totalLessons: source.total_lessons,
-  });
+  const reservedSlots = reservedSlotsFromStored(source.students?.reserved_slots);
+  const repeatedRows = reservedSlots.length
+    ? buildReservedLessonRows({
+        teacherId: user.id,
+        packageId: "pending",
+        slots: reservedSlots,
+        lessons: source.lessons ?? [],
+        totalLessons: source.total_lessons,
+        location: source.students?.default_location ?? null,
+      })
+    : buildRepeatedLessonRows({
+        teacherId: user.id,
+        packageId: "pending",
+        lessons: source.lessons ?? [],
+        totalLessons: source.total_lessons,
+      });
 
   if (repeatedRows.length) {
     const conflict = await findScheduleConflicts(

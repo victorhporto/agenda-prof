@@ -12,6 +12,12 @@ import {
   BaseLocationNote,
 } from "@/components/AddressField";
 import { storedAddressParts } from "@/lib/geo/address";
+import { ReservedSlotsEditor } from "@/components/ReservedSlotsEditor";
+import {
+  reservedSlotsFromStored,
+  type ReservationOwner,
+} from "@/lib/students/reserved";
+import { formatStudentSlots } from "@/lib/assistente/occupancy";
 import {
   LOCATION_SHORT,
   parseStoredLocation,
@@ -27,9 +33,16 @@ type Student = {
   address: string | null;
   address_parts: unknown;
   lat: number | null;
+  reserved_slots: unknown;
 };
 
-export function StudentCard({ student }: { student: Student }) {
+export function StudentCard({
+  student,
+  reservations = [],
+}: {
+  student: Student;
+  reservations?: ReservationOwner[];
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -38,6 +51,7 @@ export function StudentCard({ student }: { student: Student }) {
     () => parseStoredLocation(student.default_location) ?? "online",
   );
   const defaultLabel = parseStoredLocation(student.default_location);
+  const reservedSlots = reservedSlotsFromStored(student.reserved_slots);
 
   function onSubmit(formData: FormData) {
     setError(null);
@@ -89,6 +103,11 @@ export function StudentCard({ student }: { student: Student }) {
           ) : (
             <BaseLocationNote location={location} />
           )}
+          <ReservedSlotsEditor
+            defaultValue={reservedSlots}
+            others={reservations}
+            studentId={student.id}
+          />
           <label className="block text-sm font-medium text-[var(--ink-muted)]">
             Observações
             <textarea
@@ -136,6 +155,10 @@ export function StudentCard({ student }: { student: Student }) {
           </p>
         )}
         <AddressLine address={student.address} lat={student.lat} />
+        <p className="text-sm text-[var(--ink-muted)]">
+          Reserva:{" "}
+          {reservedSlots.length ? formatStudentSlots(reservedSlots) : "sem horário reservado"}
+        </p>
         {student.notes && (
           <p className="mt-1 text-sm text-[var(--ink-muted)]">{student.notes}</p>
         )}

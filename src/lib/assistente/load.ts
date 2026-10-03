@@ -1,9 +1,7 @@
 import type { createClient } from "@/lib/supabase/server";
 import {
-  buildOccupiedBlocks,
   previousWeekBoundsSaoPaulo,
   rollingWeekBoundsSaoPaulo,
-  selectGridLessons,
   formatWeekLabel,
   type OccupiedBlock,
   type ScheduledLessonRow,
@@ -17,6 +15,7 @@ import {
 } from "@/lib/assistente/rearrange";
 import type { Coordinates } from "@/lib/geo/geocode";
 import { basePlace, type Place } from "@/lib/geo/travel";
+import { buildIdealGrid, type GridStudent } from "@/lib/students/reserved";
 
 export type RearrangeContext = {
   weekLabel: string;
@@ -88,7 +87,7 @@ export async function loadWeekOccupiedBlocks(
 }> {
   const bounds = rollingWeekBoundsSaoPaulo(now);
   const previous = previousWeekBoundsSaoPaulo(now);
-  const [{ data, error }, base] = await Promise.all([
+  const [{ data, error }, { data: students, error: studentsError }, base] = await Promise.all([
     supabase
       .from("lessons")
       .select(
@@ -109,18 +108,38 @@ export async function loadWeekOccupiedBlocks(
       .gte("scheduled_at", previous.start.toISOString())
       .lte("scheduled_at", bounds.end.toISOString())
       .order("scheduled_at", { ascending: true }),
+    supabase
+      .from("students")
+      .select(
+        "id, name, default_location, lat, lng, reserved_slots, lesson_packages ( status )",
+      )
+      .eq("teacher_id", teacherId),
     loadTeacherBase(supabase, teacherId),
   ]);
 
-  if (error) {
-    throw new Error(error.message);
+  if (error || studentsError) {
+    throw new Error((error ?? studentsError)!.message);
   }
 
-  return {
-    occupied: buildOccupiedBlocks(
-      selectGridLessons((data ?? []) as ScheduledLessonRow[], bounds.start),
-      base,
+  const gridStudents: GridStudent[] = (students ?? []).map((student) => ({
+    id: student.id,
+    name: student.name,
+    default_location: student.default_location,
+    lat: student.lat,
+    lng: student.lng,
+    reserved_slots: student.reserved_slots,
+    hasActivePackage: (student.lesson_packages ?? []).some(
+      (pkg) => pkg.status === "active",
     ),
+  }));
+
+  return {
+    occupied: buildIdealGrid({
+      students: gridStudents,
+      lessons: (data ?? []) as ScheduledLessonRow[],
+      todayStart: bounds.start,
+      base,
+    }),
     base,
     weekLabel: formatWeekLabel(bounds),
     previousWeekLabel: formatWeekLabel(previous),

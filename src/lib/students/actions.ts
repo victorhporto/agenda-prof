@@ -6,6 +6,8 @@ import { parseRequiredLocation } from "@/lib/lessons/location";
 import { resolveAddressParts } from "@/lib/geo/geocode";
 import { addressPartsFromFormData, parseAddressParts } from "@/lib/geo/address";
 import type { Json } from "@/lib/database.types";
+import { parseReservedSlots, suggestReservedSlots } from "@/lib/students/reserved";
+import type { StudentSlot } from "@/lib/assistente/occupancy";
 
 export async function createStudent(formData: FormData) {
   const supabase = await createClient();
@@ -21,6 +23,8 @@ export async function createStudent(formData: FormData) {
 
   if (!name) return { error: "Nome é obrigatório" };
   if (!defaultLocation) return { error: "Selecione o local padrão das aulas" };
+  const reserved = parseReservedSlots(formData.get("reserved_slots"));
+  if (!reserved.ok) return { error: reserved.error };
   const parts =
     defaultLocation === "casa_aluno"
       ? parseAddressParts(addressPartsFromFormData(formData))
@@ -34,6 +38,7 @@ export async function createStudent(formData: FormData) {
     phone,
     notes,
     default_location: defaultLocation,
+    reserved_slots: reserved.value as Json,
     ...address,
     address_parts: parts.value as Json | null,
   });
@@ -61,6 +66,8 @@ export async function updateStudent(formData: FormData) {
   if (!id) return { error: "Aluno inválido" };
   if (!name) return { error: "Nome é obrigatório" };
   if (!defaultLocation) return { error: "Selecione o local padrão das aulas" };
+  const reserved = parseReservedSlots(formData.get("reserved_slots"));
+  if (!reserved.ok) return { error: reserved.error };
   // Fora da casa do aluno o formulário não mostra o endereço: o salvo fica.
   const editsAddress = defaultLocation === "casa_aluno";
   const parts = editsAddress
@@ -83,6 +90,7 @@ export async function updateStudent(formData: FormData) {
       phone,
       notes,
       default_location: defaultLocation,
+      reserved_slots: reserved.value as Json,
       ...(editsAddress
         ? { ...address, address_parts: parts.value as Json | null }
         : {}),
@@ -120,4 +128,26 @@ export async function deleteStudent(id: string) {
   revalidatePath("/inicio");
   revalidatePath("/faturamento");
   return { success: true };
+}
+
+export async function suggestReservedSlotsForStudent(
+  studentId: string,
+): Promise<{ slots: StudentSlot[] } | { error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  const since = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("lessons")
+    .select("scheduled_at, status, rescheduled_from_id, lesson_packages!inner ( student_id )")
+    .eq("teacher_id", user.id)
+    .eq("lesson_packages.student_id", studentId)
+    .gte("scheduled_at", since)
+    .order("scheduled_at", { ascending: true });
+  if (error) return { error: "Não foi possível ler as aulas do aluno" };
+
+  return { slots: suggestReservedSlots(data ?? []) };
 }

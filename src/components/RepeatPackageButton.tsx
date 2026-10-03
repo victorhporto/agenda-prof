@@ -22,7 +22,7 @@ export function RepeatPackageButton({
         onClick={() => {
           if (
             !confirm(
-              "Criar um novo pacote com os mesmos dados e agendar as aulas no período seguinte (mesmo dia da semana, horário e local)? O pagamento começará pendente.",
+              "Criar um novo pacote com os mesmos dados e agendar as aulas no período seguinte pelo horário reservado do aluno (sem reserva, repete dia da semana, horário e local do pacote atual)? O pagamento começará pendente.",
             )
           ) {
             return;

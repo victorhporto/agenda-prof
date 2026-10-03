@@ -4,6 +4,8 @@ import {
   formatMinutesLabel,
   lessonPlaceLabel,
   segmentDurationMinutes,
+  segmentHref,
+  segmentOriginLabel,
   segmentOutsideWorkWindows,
   travelDetail,
   travelLabel,
@@ -37,6 +39,7 @@ function segmentTitle(segment: TimelineSegment) {
 function segmentDetail(
   segment: TimelineSegment,
   windows: { start: string; end: string }[],
+  showOrigin: boolean,
 ) {
   if (segment.kind === "free") {
     return `${formatMinutesLabel(segmentDurationMinutes(segment))} no atendimento`;
@@ -46,7 +49,9 @@ function segmentDetail(
   }
   if (segment.kind === "travel") return travelDetail(segment);
   const place = lessonPlaceLabel(segment.location);
-  const pkg = segment.packageTitle;
+  const pkg = showOrigin
+    ? segmentOriginLabel(segment)
+    : segment.packageTitle;
   const detail = [pkg, place].filter(Boolean).join(" · ");
   if (segmentOutsideWorkWindows(segment, windows)) {
     return detail
@@ -80,9 +85,11 @@ function DayBar({ segments }: { segments: TimelineSegment[] }) {
 function SegmentRow({
   segment,
   windows,
+  showOrigin,
 }: {
   segment: TimelineSegment;
   windows: { start: string; end: string }[];
+  showOrigin: boolean;
 }) {
   const title = segmentTitle(segment);
   const body = (
@@ -92,16 +99,17 @@ function SegmentRow({
       </p>
       <p className="mt-0.5 font-semibold">{title}</p>
       <p className="text-sm text-[var(--ink-muted)]">
-        {segmentDetail(segment, windows)}
+        {segmentDetail(segment, windows, showOrigin)}
       </p>
     </>
   );
 
-  if (segment.kind === "lesson" && segment.lessonId) {
+  const href = segmentHref(segment);
+  if (href) {
     return (
       <li>
         <Link
-          href={`/aulas/${segment.lessonId}`}
+          href={href}
           className={`block rounded-xl px-3 py-2.5 transition hover:opacity-90 ${segmentClass(segment.kind)}`}
         >
           {body}
@@ -117,7 +125,13 @@ function SegmentRow({
   );
 }
 
-function DayCard({ day }: { day: DayFreeHours }) {
+export function DayCard({
+  day,
+  showOrigin = false,
+}: {
+  day: DayFreeHours;
+  showOrigin?: boolean;
+}) {
   const windowLabel =
     day.windows.length === 0
       ? "Sem horário de atendimento neste dia"
@@ -141,6 +155,7 @@ function DayCard({ day }: { day: DayFreeHours }) {
             key={`${day.weekday}-${segment.start}-${segment.kind}-${index}`}
             segment={segment}
             windows={day.windows}
+            showOrigin={showOrigin}
           />
         ))}
       </ul>

@@ -6,6 +6,8 @@ import { AddressLine } from "@/components/AddressField";
 import { createClient } from "@/lib/supabase/server";
 import { getPackageProgress } from "@/lib/package-progress";
 import { LOCATION_SHORT, parseStoredLocation } from "@/lib/lessons/location";
+import { reservedSlotsFromStored } from "@/lib/students/reserved";
+import { formatStudentSlots } from "@/lib/assistente/occupancy";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -39,6 +41,7 @@ export default async function AlunoDetailPage({ params }: Props) {
   const historyPackages = packages.filter((p) => p.status !== "active");
   const focusActiveId = activePackages[0]?.id ?? null;
   const defaultLocation = parseStoredLocation(student.default_location);
+  const reservedSlots = reservedSlotsFromStored(student.reserved_slots);
 
   return (
     <div className="space-y-6">
@@ -65,6 +68,12 @@ export default async function AlunoDetailPage({ params }: Props) {
               </p>
             )}
             <AddressLine address={student.address} lat={student.lat} />
+            <p className="mt-1 text-[var(--ink-muted)]">
+              Horário reservado:{" "}
+              {reservedSlots.length
+                ? formatStudentSlots(reservedSlots)
+                : "nenhum (edite o aluno para reservar)"}
+            </p>
             {student.notes && (
               <p className="mt-2 text-sm text-[var(--ink-muted)]">
                 {student.notes}

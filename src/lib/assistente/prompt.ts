@@ -49,13 +49,25 @@ function formatOccupiedLines(occupied: OccupiedBlock[], empty: string) {
       const loc = block.location
         ? LOCATION_LABELS[block.location]
         : "local não cadastrado";
-      const projected = block.projected ? " — projeção da semana anterior" : "";
-      return `- ${WEEKDAY_LABELS[block.weekday]} ${block.start}–${block.end} (${loc}${travelNote(block)}): ${block.studentName} (${block.packageTitle})${projected}`;
+      return `- ${WEEKDAY_LABELS[block.weekday]} ${block.start}–${block.end} (${loc}${travelNote(block)}): ${block.studentName}${blockOrigin(block)}`;
     })
     .join("\n");
 }
 
-const PROJECTION_RULE = `- Aulas marcadas como "projeção da semana anterior" são de alunos que ainda não têm aulas futuras (pacote não renovado): trate o horário como ocupado, mas pode mencionar que depende da renovação.`;
+function blockOrigin(block: OccupiedBlock) {
+  if (block.source === "reserva") {
+    return block.noActivePackage
+      ? " — horário reservado, sem pacote ativo"
+      : " — horário reservado";
+  }
+  const pkg = ` (${block.packageTitle})`;
+  return block.projected
+    ? `${pkg} — sem reserva, projeção da semana anterior`
+    : `${pkg} — sem reserva, pela aula agendada`;
+}
+
+const PROJECTION_RULE = `- A grade usa o horário semanal reservado no cadastro de cada aluno (a agenda ideal, sem remarcações ou reposições). Alunos sem reserva entram pelas aulas dos próximos 7 dias ou, sem aulas futuras, pela semana anterior.
+- Trate todos os horários listados como ocupados. Se for "sem pacote ativo" ou "projeção da semana anterior", pode mencionar que depende da renovação.`;
 
 const TRAVEL_RULE = `- O deslocamento é estimado pela distância entre os endereços (base do professor e casa de cada aluno), em blocos de 15 min. Aulas online e na casa do professor contam como na base. Sem endereço cadastrado, vale a estimativa padrão de 1h.
 - O deslocamento antes da primeira aula do dia pode começar antes da janela do professor; entre aulas, o intervalo precisa comportar o deslocamento.`;
@@ -140,7 +152,7 @@ export function buildSystemPrompt(input: {
 
   const occupiedLines = formatOccupiedLines(
     occupied,
-    "- (nenhuma aula nos próximos 7 dias)",
+    "- (nenhum horário ocupado na grade)",
   );
 
   const studentLines = form.studentSlots
@@ -169,7 +181,7 @@ CONTEXTO DESTA CONVERSA
 - Aluno: ${form.studentName}
 - Aulas desejadas por semana: ${form.lessonsPerWeek}
 - Local da aula: ${LOCATION_LABELS[form.location]}
-- Recorte da agenda: próximos 7 dias (${weekLabel}), um de cada dia da semana; alunos sem aulas futuras entram com o horário da semana anterior
+- Grade usada: horário reservado de cada aluno; para quem não tem reserva, aulas de ${weekLabel} (ou da semana anterior, se não houver aulas futuras)
 
 Horários disponíveis do aluno (início de aula de 1h):
 ${studentLines}
@@ -177,7 +189,7 @@ ${studentLines}
 Disponibilidade do professor:
 ${teacherLines}
 
-Grade já ocupada (aulas dos próximos 7 dias, incluindo as já dadas hoje, na ordem do dia, com o deslocamento estimado):
+Grade já ocupada (horários reservados dos alunos e, para quem não tem reserva, as aulas; na ordem do dia, com o deslocamento estimado):
 ${occupiedLines}
 
 Encaixes já calculados pelo sistema (não invente um horário livre que não esteja aqui, salvo se o professor pedir para considerar outra hipótese e você deixar explícito que é uma simulação):
@@ -263,13 +275,13 @@ Responda sempre em português, de forma clara e objetiva.
 TAREFA
 O professor quer remanejar o horário fixo semanal de alguns alunos que já estão na agenda. Proponha a melhor nova grade para ESTES alunos, sem mexer nos demais.
 
-Recorte da agenda: próximos 7 dias (${weekLabel}), um de cada dia da semana; alunos sem aulas futuras entram com o horário da semana anterior
+Grade usada: horário reservado de cada aluno; para quem não tem reserva, aulas de ${weekLabel} (ou da semana anterior, se não houver aulas futuras)
 
 Disponibilidade do professor:
 ${formatTeacherLines(teacherWindows)}
 
 Grade fixa (alunos que NÃO serão movidos, com o deslocamento estimado):
-${formatOccupiedLines(fixed, "- (nenhuma outra aula nestes 7 dias)")}
+${formatOccupiedLines(fixed, "- (nenhum outro horário na grade)")}
 
 ALUNOS A REMANEJAR
 ${studentSections}

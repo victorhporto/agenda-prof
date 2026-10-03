@@ -85,6 +85,10 @@ export type OccupiedBlock = {
   travelAfter?: TravelEstimate;
   /** Horário repetido da semana anterior: o aluno ainda não tem aulas futuras. */
   projected?: boolean;
+  /** "reserva" = horário reservado no cadastro; sem valor = aula real. */
+  source?: "reserva";
+  /** Reserva de aluno sem pacote ativo. */
+  noActivePackage?: boolean;
 };
 
 export type CandidateSlot = {
