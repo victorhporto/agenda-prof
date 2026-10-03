@@ -28,18 +28,21 @@ function parseWaitlistInput(raw: WaitlistRaw) {
     return { ok: false as const, error: "Selecione a preferência de local" };
   }
   if (!slots.ok) return slots;
-  const address = parseAddressParts(raw.address);
+  const editsAddress = location === "casa_aluno";
+  const address = editsAddress
+    ? parseAddressParts(raw.address)
+    : ({ ok: true, value: null } as const);
   if (!address.ok) return address;
 
   return {
     ok: true as const,
+    editsAddress,
     address: address.value,
     value: {
       name,
       contact,
       location,
       available_slots: slots.value as Json,
-      address_parts: address.value as Json | null,
     },
   };
 }
@@ -59,6 +62,7 @@ export async function createWaitlistEntry(raw: WaitlistRaw) {
     teacher_id: user.id,
     ...parsed.value,
     ...address,
+    address_parts: parsed.address as Json | null,
   });
 
   if (error) return { error: error.message };
@@ -88,7 +92,12 @@ export async function updateWaitlistEntry(id: string, raw: WaitlistRaw) {
 
   const { error } = await supabase
     .from("waitlist_entries")
-    .update({ ...parsed.value, ...address })
+    .update({
+      ...parsed.value,
+      ...(parsed.editsAddress
+        ? { ...address, address_parts: parsed.address as Json | null }
+        : {}),
+    })
     .eq("id", id)
     .eq("teacher_id", user.id);
 

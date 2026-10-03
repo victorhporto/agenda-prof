@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   BRAZIL_STATES,
@@ -220,6 +221,23 @@ export function AddressFields({
         .
       </p>
     </fieldset>
+  );
+}
+
+/** Fora da casa do aluno o deslocamento usa o ponto de partida do perfil. */
+export function BaseLocationNote({ location }: { location: string }) {
+  return (
+    <p className="text-sm text-[var(--ink-muted)]">
+      {location === "online"
+        ? "Aulas online contam como no seu ponto de partida — sem endereço do aluno."
+        : "Aulas na casa do professor usam o ponto de partida cadastrado no "}
+      {location === "online" ? null : (
+        <Link href="/perfil" className="font-medium text-[var(--accent)] hover:underline">
+          perfil
+        </Link>
+      )}
+      {location === "online" ? null : "."}
+    </p>
   );
 }
 

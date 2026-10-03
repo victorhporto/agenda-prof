@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createWaitlistEntry } from "@/lib/waitlist/actions";
 import { LocationRadios } from "@/components/LocationRadios";
 import { StudentSlotsEditor } from "@/components/StudentSlotsEditor";
-import { AddressFields } from "@/components/AddressField";
+import { AddressFields, BaseLocationNote } from "@/components/AddressField";
 import { EMPTY_ADDRESS, type AddressParts } from "@/lib/geo/address";
 import type { LessonLocation } from "@/lib/lessons/location";
 import type { StudentSlot } from "@/lib/assistente/occupancy";
@@ -42,7 +42,7 @@ export function WaitlistForm() {
         contact,
         location,
         slots,
-        address,
+        ...(location === "casa_aluno" ? { address } : {}),
       });
       if (result.error) {
         setError(result.error);
@@ -99,7 +99,11 @@ export function WaitlistForm() {
         value={location}
         onChange={setLocation}
       />
-      <AddressFields onChange={setAddress} />
+      {location === "casa_aluno" ? (
+        <AddressFields defaultValue={address} onChange={setAddress} />
+      ) : (
+        <BaseLocationNote location={location} />
+      )}
       <StudentSlotsEditor value={slots} onChange={setSlots} />
       {error && <p className="form-error">{error}</p>}
       <div className="flex gap-2">

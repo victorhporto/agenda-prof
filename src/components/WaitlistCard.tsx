@@ -8,7 +8,11 @@ import {
 } from "@/lib/waitlist/actions";
 import { LocationRadios } from "@/components/LocationRadios";
 import { StudentSlotsEditor } from "@/components/StudentSlotsEditor";
-import { AddressFields, AddressLine } from "@/components/AddressField";
+import {
+  AddressFields,
+  AddressLine,
+  BaseLocationNote,
+} from "@/components/AddressField";
 import { storedAddressParts, type AddressParts } from "@/lib/geo/address";
 import {
   LOCATION_SHORT,
@@ -73,7 +77,7 @@ export function WaitlistCard({
         contact,
         location,
         slots,
-        address,
+        ...(location === "casa_aluno" ? { address } : {}),
       });
       if (result.error) {
         setError(result.error);
@@ -126,7 +130,11 @@ export function WaitlistCard({
             value={location}
             onChange={setLocation}
           />
-          <AddressFields defaultValue={address} onChange={setAddress} />
+          {location === "casa_aluno" ? (
+            <AddressFields defaultValue={address} onChange={setAddress} />
+          ) : (
+            <BaseLocationNote location={location} />
+          )}
           <StudentSlotsEditor value={slots} onChange={setSlots} />
           {error && <p className="form-error">{error}</p>}
           <div className="flex gap-2">

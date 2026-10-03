@@ -21,7 +21,10 @@ export async function createStudent(formData: FormData) {
 
   if (!name) return { error: "Nome é obrigatório" };
   if (!defaultLocation) return { error: "Selecione o local padrão das aulas" };
-  const parts = parseAddressParts(addressPartsFromFormData(formData));
+  const parts =
+    defaultLocation === "casa_aluno"
+      ? parseAddressParts(addressPartsFromFormData(formData))
+      : ({ ok: true, value: null } as const);
   if (!parts.ok) return { error: parts.error };
 
   const address = await resolveAddressParts(parts.value);
@@ -58,7 +61,11 @@ export async function updateStudent(formData: FormData) {
   if (!id) return { error: "Aluno inválido" };
   if (!name) return { error: "Nome é obrigatório" };
   if (!defaultLocation) return { error: "Selecione o local padrão das aulas" };
-  const parts = parseAddressParts(addressPartsFromFormData(formData));
+  // Fora da casa do aluno o formulário não mostra o endereço: o salvo fica.
+  const editsAddress = defaultLocation === "casa_aluno";
+  const parts = editsAddress
+    ? parseAddressParts(addressPartsFromFormData(formData))
+    : ({ ok: true, value: null } as const);
   if (!parts.ok) return { error: parts.error };
 
   const { data: previous } = await supabase
@@ -76,8 +83,9 @@ export async function updateStudent(formData: FormData) {
       phone,
       notes,
       default_location: defaultLocation,
-      ...address,
-      address_parts: parts.value as Json | null,
+      ...(editsAddress
+        ? { ...address, address_parts: parts.value as Json | null }
+        : {}),
     })
     .eq("id", id)
     .eq("teacher_id", user.id);
